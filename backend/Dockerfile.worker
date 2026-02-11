@@ -1,0 +1,19 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies including psycopg2 for sync DB access
+COPY requirements.txt .
+RUN pip install --no-cache-dir --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org -r requirements.txt psycopg2-binary
+
+# Copy application code
+COPY . .
+
+# Command to run Celery worker
+CMD ["celery", "-A", "app.worker.celery_app", "worker", "--loglevel=info", "-Q", "default,comments,messages"]
