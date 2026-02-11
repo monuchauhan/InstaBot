@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: instabot_postgres_dev
+    environment:
+      POSTGRES_USER: instabot
+      POSTGRES_PASSWORD: instabot_password
+      POSTGRES_DB: instabot_db
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - instabot_network_dev
+
+  redis:
+    image: redis:7-alpine
+    container_name: instabot_redis_dev
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data_dev:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - instabot_network_dev
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: instabot_backend_dev
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://instabot:instabot_password@postgres:5432/instabot_db
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - JWT_SECRET_KEY=dev-jwt-secret-change-in-production
+      - ENCRYPTION_KEY=dev-encryption-key-32bytes!
+      - META_APP_ID=your-meta-app-id
+      - META_APP_SECRET=your-meta-app-secret
+      - META_WEBHOOK_VERIFY_TOKEN=your-webhook-verify-token
+      - INSTAGRAM_REDIRECT_URI=http://localhost:3000/auth/instagram/callback
+      - FRONTEND_URL=http://localhost:3000
+      - BACKEND_URL=http://localhost:8000
+      - CORS_ORIGINS=["http://localhost:3000","http://localhost:8000"]
+      - DEBUG=true
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - instabot_network_dev
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    container_name: instabot_worker_dev
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://instabot:instabot_password@postgres:5432/instabot_db
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - JWT_SECRET_KEY=dev-jwt-secret-change-in-production
+      - ENCRYPTION_KEY=dev-encryption-key-32bytes!
+      - META_APP_ID=your-meta-app-id
+      - META_APP_SECRET=your-meta-app-secret
+      - META_WEBHOOK_VERIFY_TOKEN=your-webhook-verify-token
+      - INSTAGRAM_REDIRECT_URI=http://localhost:3000/auth/instagram/callback
+      - FRONTEND_URL=http://localhost:3000
+      - BACKEND_URL=http://localhost:8000
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - instabot_network_dev
+
+volumes:
+  postgres_data_dev:
+  redis_data_dev:
+
+networks:
+  instabot_network_dev:
+    driver: bridge

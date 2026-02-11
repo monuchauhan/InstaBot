@@ -1,0 +1,89 @@
+# ===========================================
+# InstaBot Production Environment Configuration
+# ===========================================
+# IMPORTANT: Generate secure random values for all secrets!
+# Use: openssl rand -hex 32
+
+# Application Settings
+APP_NAME=InstaBot
+DEBUG=false
+API_V1_PREFIX=/api/v1
+
+# ===========================================
+# SECURITY KEYS (MUST CHANGE IN PRODUCTION!)
+# ===========================================
+# Generate with: openssl rand -hex 32
+SECRET_KEY=CHANGE_ME_generate_with_openssl_rand_hex_32
+JWT_SECRET_KEY=CHANGE_ME_generate_with_openssl_rand_hex_32
+# Must be exactly 32 characters
+ENCRYPTION_KEY=CHANGE_ME_exactly_32_characters!
+
+# ===========================================
+# DATABASE
+# ===========================================
+POSTGRES_USER=instabot_prod
+POSTGRES_PASSWORD=CHANGE_ME_strong_database_password
+POSTGRES_DB=instabot_production
+
+# ===========================================
+# REDIS
+# ===========================================
+REDIS_PASSWORD=CHANGE_ME_strong_redis_password
+
+# ===========================================
+# INSTAGRAM/META API
+# ===========================================
+# Get these from https://developers.facebook.com/
+META_APP_ID=your_meta_app_id
+META_APP_SECRET=your_meta_app_secret
+META_WEBHOOK_VERIFY_TOKEN=your_random_webhook_verify_token
+INSTAGRAM_GRAPH_API_VERSION=v18.0
+
+# ===========================================
+# URLS (Update with your domain)
+# ===========================================
+DOMAIN=yourdomain.com
+FRONTEND_URL=https://yourdomain.com
+BACKEND_URL=https://api.yourdomain.com
+INSTAGRAM_REDIRECT_URI=https://yourdomain.com/auth/instagram/callback
+CORS_ORIGINS=["https://yourdomain.com"]
+
+# ===========================================
+# EMAIL (SMTP) - Required for email verification
+# ===========================================
+SMTP_HOST=smtp.youremailprovider.com
+SMTP_PORT=587
+SMTP_USER=your_smtp_username
+SMTP_PASSWORD=your_smtp_password
+SMTP_FROM_EMAIL=noreply@yourdomain.com
+SMTP_FROM_NAME=InstaBot
+
+# ===========================================
+# RATE LIMITING
+# ===========================================
+RATE_LIMIT_PER_MINUTE=60
+RATE_LIMIT_AUTH_PER_MINUTE=10
+
+# ===========================================
+# JWT TOKEN EXPIRATION
+# ===========================================
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# ===========================================
+# SUBSCRIPTION TIERS (Optional - for future billing)
+# ===========================================
+# FREE_TIER_MAX_ACCOUNTS=1
+# FREE_TIER_MAX_AUTOMATIONS=2
+# PRO_TIER_MAX_ACCOUNTS=5
+# PRO_TIER_MAX_AUTOMATIONS=20
+# ENTERPRISE_TIER_MAX_ACCOUNTS=unlimited
+# ENTERPRISE_TIER_MAX_AUTOMATIONS=unlimited
+
+# ===========================================
+# STRIPE (Optional - for future billing)
+# ===========================================
+# STRIPE_SECRET_KEY=sk_live_xxx
+# STRIPE_WEBHOOK_SECRET=whsec_xxx
+# STRIPE_PRICE_PRO_MONTHLY=price_xxx
+# STRIPE_PRICE_ENTERPRISE_MONTHLY=price_xxx
