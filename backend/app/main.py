@@ -21,9 +21,9 @@ app = FastAPI(
     title=settings.APP_NAME,
     description="Instagram Automation Bot API - Auto-reply to comments and send DMs",
     version="1.0.0",
-    openapi_url=f"{settings.API_V1_PREFIX}/openapi.json" if settings.DEBUG else None,
-    docs_url=f"{settings.API_V1_PREFIX}/docs" if settings.DEBUG else None,
-    redoc_url=f"{settings.API_V1_PREFIX}/redoc" if settings.DEBUG else None,
+    openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
+    docs_url=f"{settings.API_V1_PREFIX}/docs",
+    redoc_url=f"{settings.API_V1_PREFIX}/redoc",
     lifespan=lifespan,
 )
 
@@ -34,9 +34,12 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RateLimitMiddleware)
 
 # CORS middleware
+# In production, requests come through nginx proxy (same-origin, no CORS needed).
+# This config ensures direct API access also works for development/testing.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=r"https://.*\.(app\.github\.dev|preview\.app\.github\.dev|gitpod\.io)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

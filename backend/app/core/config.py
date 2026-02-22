@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     BACKEND_URL: str = "http://localhost:8000"
     
     # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000"]
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
     
     # Email (SMTP) - Optional for email verification
     SMTP_HOST: Optional[str] = None

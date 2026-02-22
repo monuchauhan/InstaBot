@@ -11,7 +11,10 @@ import {
   ActionLogList,
 } from '../types';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1';
+// Use relative URL so requests go to the same host that served the page.
+// Nginx proxies /api/* to the backend container - works in localhost,
+// Codespaces, and production without any changes.
+const API_URL = process.env.REACT_APP_API_URL || '/api/v1';
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
