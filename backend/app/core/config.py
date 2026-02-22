@@ -28,11 +28,11 @@ class Settings(BaseSettings):
     CELERY_RESULT_BACKEND: str
     
     # Instagram/Meta API
-    META_APP_ID: str
-    META_APP_SECRET: str
-    META_WEBHOOK_VERIFY_TOKEN: str
+    META_APP_ID: str = ""
+    META_APP_SECRET: str = ""
+    META_WEBHOOK_VERIFY_TOKEN: str = ""
     INSTAGRAM_GRAPH_API_VERSION: str = "v18.0"
-    INSTAGRAM_REDIRECT_URI: str
+    INSTAGRAM_REDIRECT_URI: str = ""
     
     # Frontend
     FRONTEND_URL: str = "http://localhost:3000"

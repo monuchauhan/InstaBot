@@ -1,17 +1,24 @@
 import hmac
 import hashlib
 import json
+import logging
 from fastapi import APIRouter, Request, HTTPException, Query, Depends
+from fastapi.responses import PlainTextResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.db import get_db
 from app.worker.tasks import process_comment_event
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 
 
 def verify_webhook_signature(payload: bytes, signature: str) -> bool:
     """Verify the webhook signature using HMAC SHA-256."""
+    if not settings.META_APP_SECRET:
+        logger.warning("META_APP_SECRET not configured, skipping signature verification")
+        return False
     expected_signature = hmac.new(
         settings.META_APP_SECRET.encode(),
         payload,
@@ -26,10 +33,19 @@ async def verify_instagram_webhook(
     hub_verify_token: str = Query(..., alias="hub.verify_token"),
     hub_challenge: str = Query(..., alias="hub.challenge"),
 ):
-    """Verify Instagram webhook subscription (GET request from Meta)."""
-    if hub_mode == "subscribe" and hub_verify_token == settings.META_WEBHOOK_VERIFY_TOKEN:
-        return int(hub_challenge)
+    """Verify Instagram webhook subscription (GET request from Meta).
     
+    Meta sends a GET request with hub.mode, hub.verify_token, and hub.challenge.
+    We must respond with the hub.challenge value as plain text with 200 status.
+    """
+    logger.info(f"Webhook verification request: mode={hub_mode}, token={hub_verify_token[:4]}...")
+    
+    if hub_mode == "subscribe" and hub_verify_token == settings.META_WEBHOOK_VERIFY_TOKEN:
+        logger.info("Webhook verification successful")
+        # Meta requires the challenge returned as plain text, NOT JSON
+        return PlainTextResponse(content=hub_challenge, status_code=200)
+    
+    logger.warning("Webhook verification failed: token mismatch")
     raise HTTPException(status_code=403, detail="Verification failed")
 
 
