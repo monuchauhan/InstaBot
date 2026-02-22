@@ -78,11 +78,18 @@ class Settings(BaseSettings):
     
     @property
     def META_OAUTH_URL(self) -> str:
-        return "https://www.facebook.com/v18.0/dialog/oauth"
+        """Instagram Login OAuth URL (native Instagram login screen)."""
+        return "https://api.instagram.com/oauth/authorize"
     
     @property
     def META_TOKEN_URL(self) -> str:
-        return "https://graph.facebook.com/v18.0/oauth/access_token"
+        """Instagram Login short-lived token exchange URL."""
+        return "https://api.instagram.com/oauth/access_token"
+    
+    @property
+    def INSTAGRAM_LONG_LIVED_TOKEN_URL(self) -> str:
+        """Instagram Login long-lived token exchange URL."""
+        return "https://graph.instagram.com/access_token"
     
     @property
     def email_enabled(self) -> bool:

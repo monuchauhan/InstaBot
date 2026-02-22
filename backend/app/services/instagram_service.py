@@ -1,11 +1,14 @@
+import logging
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 import httpx
 from app.db.models import InstagramAccount
 from app.core.config import settings
 from app.core.encryption import encrypt_token, decrypt_token
+
+logger = logging.getLogger(__name__)
 
 
 async def get_instagram_account_by_id(
@@ -48,87 +51,72 @@ async def get_user_instagram_accounts(
 
 
 async def exchange_code_for_token(code: str) -> dict:
-    """Exchange authorization code for access token."""
+    """Exchange authorization code for a short-lived access token.
+    
+    Uses Instagram Login API (api.instagram.com), not Facebook Login.
+    Returns: { access_token, user_id }
+    """
     async with httpx.AsyncClient() as client:
-        response = await client.get(
+        # Instagram Login requires a POST with form data (not GET with query params)
+        response = await client.post(
             settings.META_TOKEN_URL,
-            params={
+            data={
                 "client_id": settings.META_APP_ID,
                 "client_secret": settings.META_APP_SECRET,
+                "grant_type": "authorization_code",
                 "redirect_uri": settings.INSTAGRAM_REDIRECT_URI,
                 "code": code,
             }
         )
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+        logger.info(f"Token exchange successful for user_id={data.get('user_id')}")
+        return data  # { access_token, user_id }
 
 
 async def get_long_lived_token(short_lived_token: str) -> dict:
-    """Exchange short-lived token for long-lived token."""
+    """Exchange short-lived token for long-lived token (60 days).
+    
+    Uses Instagram Graph API endpoint, not Facebook Graph API.
+    Returns: { access_token, token_type, expires_in }
+    """
     async with httpx.AsyncClient() as client:
         response = await client.get(
-            f"https://graph.facebook.com/{settings.INSTAGRAM_GRAPH_API_VERSION}/oauth/access_token",
+            settings.INSTAGRAM_LONG_LIVED_TOKEN_URL,
             params={
-                "grant_type": "fb_exchange_token",
-                "client_id": settings.META_APP_ID,
+                "grant_type": "ig_exchange_token",
                 "client_secret": settings.META_APP_SECRET,
-                "fb_exchange_token": short_lived_token,
+                "access_token": short_lived_token,
             }
         )
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+        logger.info(f"Long-lived token obtained, expires_in={data.get('expires_in')}")
+        return data  # { access_token, token_type, expires_in }
 
 
-async def get_instagram_business_account(access_token: str) -> dict:
-    """Get Instagram Business Account ID from connected Facebook Page."""
+async def get_instagram_user_profile(access_token: str, user_id: str) -> dict:
+    """Get Instagram user profile details using Instagram Login API.
+    
+    With Instagram Login, the user_id is returned directly from the token
+    exchange — no need to go through Facebook Pages.
+    """
     async with httpx.AsyncClient() as client:
-        # First, get the user's Facebook Pages
-        pages_response = await client.get(
-            f"https://graph.facebook.com/{settings.INSTAGRAM_GRAPH_API_VERSION}/me/accounts",
-            params={"access_token": access_token}
-        )
-        pages_response.raise_for_status()
-        pages_data = pages_response.json()
-        
-        if not pages_data.get("data"):
-            raise ValueError("No Facebook Pages found")
-        
-        # Get the first page's Instagram Business Account
-        page = pages_data["data"][0]
-        page_id = page["id"]
-        page_token = page["access_token"]
-        
-        ig_response = await client.get(
-            f"https://graph.facebook.com/{settings.INSTAGRAM_GRAPH_API_VERSION}/{page_id}",
+        response = await client.get(
+            f"https://graph.instagram.com/{settings.INSTAGRAM_GRAPH_API_VERSION}/me",
             params={
-                "fields": "instagram_business_account",
-                "access_token": page_token,
-            }
-        )
-        ig_response.raise_for_status()
-        ig_data = ig_response.json()
-        
-        if "instagram_business_account" not in ig_data:
-            raise ValueError("No Instagram Business Account connected to this page")
-        
-        ig_account_id = ig_data["instagram_business_account"]["id"]
-        
-        # Get Instagram account details
-        ig_details_response = await client.get(
-            f"https://graph.facebook.com/{settings.INSTAGRAM_GRAPH_API_VERSION}/{ig_account_id}",
-            params={
-                "fields": "username,name",
+                "fields": "user_id,username,name,account_type,profile_picture_url",
                 "access_token": access_token,
             }
         )
-        ig_details_response.raise_for_status()
-        ig_details = ig_details_response.json()
+        response.raise_for_status()
+        profile = response.json()
+        logger.info(f"Instagram profile retrieved: @{profile.get('username')}")
         
         return {
-            "instagram_user_id": ig_account_id,
-            "instagram_username": ig_details.get("username"),
-            "page_id": page_id,
-            "page_access_token": page_token,
+            "instagram_user_id": str(profile.get("user_id", user_id)),
+            "instagram_username": profile.get("username"),
+            "page_id": None,  # Not needed with Instagram Login
         }
 
 
@@ -137,18 +125,19 @@ async def connect_instagram_account(
     user_id: int,
     code: str
 ) -> InstagramAccount:
-    """Connect an Instagram account via OAuth."""
-    # Exchange code for token
+    """Connect an Instagram account via OAuth (Instagram Login flow)."""
+    # Exchange code for short-lived token
     token_data = await exchange_code_for_token(code)
     short_lived_token = token_data["access_token"]
+    ig_user_id = str(token_data["user_id"])  # Instagram Login returns user_id directly
     
     # Get long-lived token
     long_lived_data = await get_long_lived_token(short_lived_token)
     long_lived_token = long_lived_data["access_token"]
     expires_in = long_lived_data.get("expires_in", 5184000)  # Default 60 days
     
-    # Get Instagram account details
-    ig_data = await get_instagram_business_account(long_lived_token)
+    # Get Instagram user profile
+    ig_data = await get_instagram_user_profile(long_lived_token, ig_user_id)
     
     # Check if account already connected
     existing = await get_instagram_account_by_ig_user_id(
@@ -169,7 +158,6 @@ async def connect_instagram_account(
         return existing
     
     # Create new account
-    from datetime import timedelta
     account = InstagramAccount(
         user_id=user_id,
         instagram_user_id=ig_data["instagram_user_id"],

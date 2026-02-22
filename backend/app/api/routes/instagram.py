@@ -29,7 +29,7 @@ async def get_instagram_connect_url(
     params = {
         "client_id": settings.META_APP_ID,
         "redirect_uri": settings.INSTAGRAM_REDIRECT_URI,
-        "scope": "instagram_basic,instagram_manage_comments,instagram_manage_messages,pages_show_list,pages_read_engagement",
+        "scope": "instagram_business_basic,instagram_business_manage_comments,instagram_business_manage_messages",
         "response_type": "code",
         "state": str(current_user.id),  # Include user ID in state for verification
     }
