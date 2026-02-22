@@ -28,10 +28,12 @@ class Settings(BaseSettings):
     CELERY_RESULT_BACKEND: str
     
     # Instagram/Meta API
-    META_APP_ID: str = ""
-    META_APP_SECRET: str = ""
+    META_APP_ID: str = ""          # Facebook/Meta App ID (for webhooks)
+    META_APP_SECRET: str = ""      # Facebook/Meta App Secret (for webhook signature)
     META_WEBHOOK_VERIFY_TOKEN: str = ""
-    INSTAGRAM_GRAPH_API_VERSION: str = "v18.0"
+    INSTAGRAM_APP_ID: str = ""     # Instagram App ID (for Instagram Login OAuth)
+    INSTAGRAM_APP_SECRET: str = "" # Instagram App Secret (for token exchange)
+    INSTAGRAM_GRAPH_API_VERSION: str = "v21.0"
     INSTAGRAM_REDIRECT_URI: str = ""
     
     # Frontend

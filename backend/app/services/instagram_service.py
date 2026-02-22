@@ -61,8 +61,8 @@ async def exchange_code_for_token(code: str) -> dict:
         response = await client.post(
             settings.META_TOKEN_URL,
             data={
-                "client_id": settings.META_APP_ID,
-                "client_secret": settings.META_APP_SECRET,
+                "client_id": settings.INSTAGRAM_APP_ID,      # Instagram App ID
+                "client_secret": settings.INSTAGRAM_APP_SECRET,  # Instagram App Secret
                 "grant_type": "authorization_code",
                 "redirect_uri": settings.INSTAGRAM_REDIRECT_URI,
                 "code": code,
@@ -85,7 +85,7 @@ async def get_long_lived_token(short_lived_token: str) -> dict:
             settings.INSTAGRAM_LONG_LIVED_TOKEN_URL,
             params={
                 "grant_type": "ig_exchange_token",
-                "client_secret": settings.META_APP_SECRET,
+                "client_secret": settings.INSTAGRAM_APP_SECRET,  # Instagram App Secret
                 "access_token": short_lived_token,
             }
         )

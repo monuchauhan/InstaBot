@@ -27,7 +27,7 @@ async def get_instagram_connect_url(
     await enforce_account_limit(db, current_user)
     
     params = {
-        "client_id": settings.META_APP_ID,
+        "client_id": settings.INSTAGRAM_APP_ID,  # Instagram App ID, not Meta App ID
         "redirect_uri": settings.INSTAGRAM_REDIRECT_URI,
         "scope": "instagram_business_basic,instagram_business_manage_comments,instagram_business_manage_messages",
         "response_type": "code",
