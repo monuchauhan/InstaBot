@@ -120,6 +120,31 @@ async def get_instagram_user_profile(access_token: str, user_id: str) -> dict:
         }
 
 
+async def subscribe_to_webhooks(access_token: str, ig_user_id: str) -> bool:
+    """Subscribe the Instagram account to receive webhook notifications.
+    
+    This MUST be called after connecting an account. Without this,
+    Meta will not send webhook events for this account.
+    
+    Docs: https://developers.facebook.com/docs/instagram-platform/webhooks#enable-subscriptions
+    """
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"https://graph.instagram.com/{settings.INSTAGRAM_GRAPH_API_VERSION}/{ig_user_id}/subscribed_apps",
+            params={
+                "subscribed_fields": "comments,messages",
+                "access_token": access_token,
+            }
+        )
+        if response.status_code == 200:
+            data = response.json()
+            logger.info(f"Webhook subscription successful for {ig_user_id}: {data}")
+            return data.get("success", False)
+        else:
+            logger.error(f"Webhook subscription failed for {ig_user_id}: {response.status_code} {response.text}")
+            return False
+
+
 async def connect_instagram_account(
     db: AsyncSession,
     user_id: int,
@@ -155,6 +180,10 @@ async def connect_instagram_account(
         existing.is_active = True
         await db.flush()
         await db.refresh(existing)
+        
+        # Subscribe to webhook notifications
+        await subscribe_to_webhooks(long_lived_token, ig_data["instagram_user_id"])
+        
         return existing
     
     # Create new account
@@ -169,6 +198,10 @@ async def connect_instagram_account(
     db.add(account)
     await db.flush()
     await db.refresh(account)
+    
+    # Subscribe to webhook notifications
+    await subscribe_to_webhooks(long_lived_token, ig_data["instagram_user_id"])
+    
     return account
 
 

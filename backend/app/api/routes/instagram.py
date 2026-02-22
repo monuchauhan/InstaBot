@@ -11,6 +11,7 @@ from app.services import (
     connect_instagram_account,
     disconnect_instagram_account,
 )
+from app.services.instagram_service import subscribe_to_webhooks, get_decrypted_token
 from app.api.deps import get_current_user
 from typing import List
 
@@ -106,3 +107,33 @@ async def disconnect_account(
     
     await disconnect_instagram_account(db, account)
     return None
+
+
+@router.post("/accounts/{account_id}/subscribe-webhooks")
+async def subscribe_account_webhooks(
+    account_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Manually subscribe an already-connected Instagram account to webhooks.
+    
+    Useful for accounts connected before webhook subscription was implemented,
+    or to re-subscribe after any issues.
+    """
+    account = await get_instagram_account_by_id(db, account_id, current_user.id)
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Instagram account not found"
+        )
+    
+    access_token = get_decrypted_token(account)
+    success = await subscribe_to_webhooks(access_token, account.instagram_user_id)
+    
+    if success:
+        return {"status": "subscribed", "account_id": account_id}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to subscribe to webhooks. Check the backend logs."
+        )

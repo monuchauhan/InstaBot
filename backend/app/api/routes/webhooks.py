@@ -70,16 +70,32 @@ async def handle_instagram_webhook(
         raise HTTPException(status_code=400, detail="Invalid JSON payload")
     
     # Process the webhook event
+    logger.info(f"Webhook received: object={payload.get('object')}, entries={len(payload.get('entry', []))}")
+    
     if payload.get("object") == "instagram":
         for entry in payload.get("entry", []):
+            ig_user_id = entry.get("id")
+            
+            # Handle changes-based webhooks (comments, mentions, etc.)
             for change in entry.get("changes", []):
-                if change.get("field") == "comments":
-                    # Queue the comment event for async processing
+                field = change.get("field")
+                logger.info(f"Webhook change: field={field}, ig_user_id={ig_user_id}")
+                
+                if field == "comments":
                     comment_data = change.get("value", {})
                     process_comment_event.delay(
-                        instagram_user_id=entry.get("id"),
+                        instagram_user_id=ig_user_id,
                         comment_data=comment_data,
                     )
+                elif field == "mentions":
+                    logger.info(f"Mention event received for {ig_user_id}")
+                    # Could add mention processing here
+            
+            # Handle messaging webhooks (different structure)
+            for messaging_event in entry.get("messaging", []):
+                logger.info(f"Messaging event received for {ig_user_id}: {json.dumps(messaging_event)[:200]}")
+    else:
+        logger.warning(f"Unexpected webhook object type: {payload.get('object')}")
     
     # Always return 200 OK to acknowledge receipt
     return {"status": "ok"}

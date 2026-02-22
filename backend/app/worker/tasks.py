@@ -1,12 +1,13 @@
 import json
+import logging
 import httpx
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from celery import shared_task
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from app.core.config import settings
-from app.core.encryption import decrypt_token
+from app.core.encryption import decrypt_token, encrypt_token
 from app.db.models import (
     InstagramAccount, 
     AutomationSettings, 
@@ -14,6 +15,8 @@ from app.db.models import (
     AutomationType, 
     ActionType
 )
+
+logger = logging.getLogger(__name__)
 
 # Create sync database session for Celery tasks
 # Note: Using sync SQLAlchemy for Celery since Celery doesn't natively support async
@@ -33,6 +36,7 @@ def process_comment_event(self, instagram_user_id: str, comment_data: dict):
     Process an incoming comment event from Instagram webhook.
     This task determines which automations to trigger.
     """
+    logger.info(f"Processing comment event for ig_user={instagram_user_id}, data={json.dumps(comment_data)[:200]}")
     db = get_db_session()
     try:
         # Find the Instagram account
@@ -42,6 +46,7 @@ def process_comment_event(self, instagram_user_id: str, comment_data: dict):
         ).first()
         
         if not account:
+            logger.warning(f"Account not found or inactive for ig_user_id={instagram_user_id}")
             return {"status": "skipped", "reason": "Account not found or inactive"}
         
         # Log the webhook event
@@ -80,6 +85,7 @@ def process_comment_event(self, instagram_user_id: str, comment_data: dict):
                 )
             
             if should_reply and auto_reply_settings.template_message:
+                logger.info(f"Triggering comment reply: comment_id={comment_id}, reply='{auto_reply_settings.template_message[:50]}'")
                 post_comment_reply.delay(
                     account_id=account.id,
                     comment_id=comment_id,
@@ -146,14 +152,17 @@ def post_comment_reply(
         access_token = decrypt_token(account.access_token_encrypted)
         
         # Post the reply using Instagram Graph API
+        # For Instagram API with Instagram Login: graph.instagram.com
         with httpx.Client() as client:
             response = client.post(
-                f"{settings.INSTAGRAM_API_BASE_URL}/{comment_id}/replies",
+                f"https://graph.instagram.com/{settings.INSTAGRAM_GRAPH_API_VERSION}/{comment_id}/replies",
                 params={
                     "message": reply_text,
                     "access_token": access_token,
                 }
             )
+            
+            logger.info(f"Comment reply response: status={response.status_code}, body={response.text[:200]}")
             
             if response.status_code == 200:
                 result = response.json()
@@ -248,13 +257,15 @@ def send_dm(
         # Send DM using Instagram Messaging API
         with httpx.Client() as client:
             response = client.post(
-                f"{settings.INSTAGRAM_API_BASE_URL}/me/messages",
+                f"https://graph.instagram.com/{settings.INSTAGRAM_GRAPH_API_VERSION}/me/messages",
                 params={"access_token": access_token},
                 json={
                     "recipient": {"id": recipient_id},
                     "message": {"text": message_text},
                 }
             )
+            
+            logger.info(f"DM send response: status={response.status_code}, body={response.text[:200]}")
             
             if response.status_code == 200:
                 result = response.json()
@@ -321,19 +332,17 @@ def refresh_instagram_tokens():
             try:
                 access_token = decrypt_token(account.access_token_encrypted)
                 
+                # Use Instagram Login token refresh endpoint
                 with httpx.Client() as client:
                     response = client.get(
-                        f"https://graph.facebook.com/{settings.INSTAGRAM_GRAPH_API_VERSION}/oauth/access_token",
+                        f"https://graph.instagram.com/refresh_access_token",
                         params={
-                            "grant_type": "fb_exchange_token",
-                            "client_id": settings.META_APP_ID,
-                            "client_secret": settings.META_APP_SECRET,
-                            "fb_exchange_token": access_token,
+                            "grant_type": "ig_refresh_token",
+                            "access_token": access_token,
                         }
                     )
                     
                     if response.status_code == 200:
-                        from app.core.encryption import encrypt_token
                         data = response.json()
                         new_token = data["access_token"]
                         expires_in = data.get("expires_in", 5184000)
@@ -341,10 +350,13 @@ def refresh_instagram_tokens():
                         account.access_token_encrypted = encrypt_token(new_token)
                         account.token_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
                         db.commit()
+                        logger.info(f"Token refreshed for account {account.id}")
+                    else:
+                        logger.error(f"Token refresh failed for account {account.id}: {response.text}")
                         
             except Exception as e:
                 # Log error but continue with other accounts
-                print(f"Failed to refresh token for account {account.id}: {e}")
+                logger.error(f"Failed to refresh token for account {account.id}: {e}")
                 continue
                 
         return {"status": "completed", "accounts_processed": len(accounts)}
