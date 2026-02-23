@@ -60,7 +60,11 @@ async def handle_instagram_webhook(
     
     # Verify signature
     signature = request.headers.get("X-Hub-Signature-256", "")
+    logger.info(f"Webhook POST received: signature_present={bool(signature)}, body_length={len(body)}")
+    logger.info(f"Webhook payload preview: {body[:500]}")
+    
     if not verify_webhook_signature(body, signature):
+        logger.warning(f"Webhook signature verification FAILED. Signature header: '{signature[:20]}...' if present")
         raise HTTPException(status_code=403, detail="Invalid signature")
     
     # Parse payload
