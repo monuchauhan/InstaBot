@@ -67,6 +67,11 @@ def process_comment_event(self, instagram_user_id: str, comment_data: dict):
         from_user = comment_data.get("from", {})
         commenter_id = from_user.get("id")
         
+        # Ignore comments made by the account owner (prevents infinite reply loop)
+        if commenter_id == instagram_user_id:
+            logger.info(f"Ignoring self-comment from account owner ig_user_id={instagram_user_id}")
+            return {"status": "skipped", "reason": "Self-comment ignored"}
+        
         # Check for auto-reply comment automation
         auto_reply_settings = db.query(AutomationSettings).filter(
             AutomationSettings.instagram_account_id == account.id,
