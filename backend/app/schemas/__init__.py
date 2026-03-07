@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, EmailStr, Field
+import json
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from app.db.models import AutomationType, ActionType, SubscriptionTier
 
 
@@ -106,6 +107,14 @@ class AutomationSettingsResponse(AutomationSettingsBase):
     instagram_account_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
+    
+    @field_validator("trigger_keywords", mode="before")
+    @classmethod
+    def parse_trigger_keywords(cls, v):
+        """Parse trigger_keywords from JSON string (DB storage) to list."""
+        if isinstance(v, str):
+            return json.loads(v)
+        return v
     
     class Config:
         from_attributes = True
