@@ -120,6 +120,80 @@ class AutomationSettingsResponse(AutomationSettingsBase):
         from_attributes = True
 
 
+# ============= Conversation Flow Schemas =============
+
+class QuickReplyOption(BaseModel):
+    """A single quick-reply button."""
+    title: str = Field(..., max_length=20)  # Instagram limits to 20 chars
+    payload: str = Field(..., max_length=100)  # Internal identifier
+
+
+class ConversationStepCreate(BaseModel):
+    """Create a conversation step."""
+    parent_step_id: Optional[int] = None
+    step_order: int = 0
+    payload_trigger: Optional[str] = None  # Which quick_reply payload triggers this step
+    message_text: str
+    quick_replies: Optional[List[QuickReplyOption]] = None
+    is_end_step: bool = False
+
+
+class ConversationStepUpdate(BaseModel):
+    """Update a conversation step."""
+    step_order: Optional[int] = None
+    payload_trigger: Optional[str] = None
+    message_text: Optional[str] = None
+    quick_replies: Optional[List[QuickReplyOption]] = None
+    is_end_step: Optional[bool] = None
+
+
+class ConversationStepResponse(BaseModel):
+    id: int
+    flow_id: int
+    parent_step_id: Optional[int] = None
+    step_order: int
+    payload_trigger: Optional[str] = None
+    message_text: str
+    quick_replies: Optional[List[QuickReplyOption]] = None
+    is_end_step: bool
+    child_steps: Optional[List["ConversationStepResponse"]] = None
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class ConversationFlowCreate(BaseModel):
+    """Create a conversation flow for a SEND_DM automation."""
+    automation_id: int
+    name: str = Field(..., max_length=255)
+    description: Optional[str] = None
+    initial_message: str  # Supports {username} placeholder
+    steps: Optional[List[ConversationStepCreate]] = None  # Optional: create steps inline
+
+
+class ConversationFlowUpdate(BaseModel):
+    """Update a conversation flow."""
+    name: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = None
+    initial_message: Optional[str] = None
+
+
+class ConversationFlowResponse(BaseModel):
+    id: int
+    automation_id: int
+    name: str
+    description: Optional[str] = None
+    initial_message: str
+    steps: List[ConversationStepResponse] = []
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
 # ============= Action Log Schemas =============
 
 class ActionLogBase(BaseModel):
@@ -178,3 +252,4 @@ class WebhookPayload(BaseModel):
 
 # Update forward references
 UserWithAccounts.model_rebuild()
+ConversationStepResponse.model_rebuild()

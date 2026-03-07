@@ -1,10 +1,13 @@
 import time
+import logging
 from typing import Optional
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 import redis.asyncio as redis
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -125,9 +128,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return response
             
         except Exception as e:
-            print(f"Rate limiting error: {e}")
-            # On error, allow the request through
-            return await call_next(request)
+            logger.warning(f"Rate limiting error: {e}")
+            # On error, skip rate limiting and let the request through.
+            # NOTE: Do NOT call call_next again — the request body has
+            # already been consumed, which causes "No response returned".
+            raise
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):

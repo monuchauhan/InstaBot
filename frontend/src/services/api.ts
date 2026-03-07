@@ -9,6 +9,12 @@ import {
   AutomationCreate,
   AutomationUpdate,
   ActionLogList,
+  ConversationFlow,
+  ConversationFlowCreate,
+  ConversationFlowUpdate,
+  ConversationStep,
+  ConversationStepCreate,
+  ConversationStepUpdate,
 } from '../types';
 
 // Use relative URL so requests go to the same host that served the page.
@@ -154,6 +160,53 @@ export const automationApi = {
   toggle: async (automationId: number): Promise<AutomationSettings> => {
     const response = await api.post<AutomationSettings>(`/automations/${automationId}/toggle`);
     return response.data;
+  },
+};
+
+// Conversation Flow API
+export const conversationFlowApi = {
+  getAll: async (): Promise<ConversationFlow[]> => {
+    const response = await api.get<ConversationFlow[]>('/conversation-flows');
+    return response.data;
+  },
+
+  get: async (flowId: number): Promise<ConversationFlow> => {
+    const response = await api.get<ConversationFlow>(`/conversation-flows/${flowId}`);
+    return response.data;
+  },
+
+  getByAutomation: async (automationId: number): Promise<ConversationFlow> => {
+    const response = await api.get<ConversationFlow>(`/conversation-flows/by-automation/${automationId}`);
+    return response.data;
+  },
+
+  create: async (data: ConversationFlowCreate): Promise<ConversationFlow> => {
+    const response = await api.post<ConversationFlow>('/conversation-flows', data);
+    return response.data;
+  },
+
+  update: async (flowId: number, data: ConversationFlowUpdate): Promise<ConversationFlow> => {
+    const response = await api.put<ConversationFlow>(`/conversation-flows/${flowId}`, data);
+    return response.data;
+  },
+
+  delete: async (flowId: number): Promise<void> => {
+    await api.delete(`/conversation-flows/${flowId}`);
+  },
+
+  // Steps
+  addStep: async (flowId: number, data: ConversationStepCreate): Promise<ConversationStep> => {
+    const response = await api.post<ConversationStep>(`/conversation-flows/${flowId}/steps`, data);
+    return response.data;
+  },
+
+  updateStep: async (flowId: number, stepId: number, data: ConversationStepUpdate): Promise<ConversationStep> => {
+    const response = await api.put<ConversationStep>(`/conversation-flows/${flowId}/steps/${stepId}`, data);
+    return response.data;
+  },
+
+  deleteStep: async (flowId: number, stepId: number): Promise<void> => {
+    await api.delete(`/conversation-flows/${flowId}/steps/${stepId}`);
   },
 };
 

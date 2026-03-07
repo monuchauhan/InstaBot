@@ -84,6 +84,68 @@ export interface AutomationUpdate {
   trigger_keywords?: string[];
 }
 
+// Conversation Flow types
+export interface QuickReplyOption {
+  title: string;
+  payload: string;
+}
+
+export interface ConversationStep {
+  id: number;
+  flow_id: number;
+  parent_step_id: number | null;
+  step_order: number;
+  payload_trigger: string | null;
+  message_text: string;
+  quick_replies: QuickReplyOption[] | null;
+  is_end_step: boolean;
+  child_steps?: ConversationStep[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConversationStepCreate {
+  parent_step_id?: number | null;
+  step_order?: number;
+  payload_trigger?: string;
+  message_text: string;
+  quick_replies?: QuickReplyOption[];
+  is_end_step?: boolean;
+}
+
+export interface ConversationStepUpdate {
+  step_order?: number;
+  payload_trigger?: string;
+  message_text?: string;
+  quick_replies?: QuickReplyOption[];
+  is_end_step?: boolean;
+}
+
+export interface ConversationFlow {
+  id: number;
+  automation_id: number;
+  name: string;
+  description: string | null;
+  initial_message: string;
+  steps: ConversationStep[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConversationFlowCreate {
+  automation_id: number;
+  name: string;
+  description?: string;
+  initial_message: string;
+  steps?: ConversationStepCreate[];
+}
+
+export interface ConversationFlowUpdate {
+  name?: string;
+  description?: string;
+  initial_message?: string;
+}
+
 // Action Log types
 export type ActionType = 'comment_reply' | 'dm_sent' | 'webhook_received' | 'error';
 

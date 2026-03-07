@@ -424,3 +424,323 @@
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
+
+/* ============= Conversation Flow Editor Styles ============= */
+
+.modal-wide {
+  max-width: 720px !important;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.flow-button {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  color: #1a1a2e;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.flow-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(67, 233, 123, 0.3);
+}
+
+.flow-status {
+  font-size: 0.85rem;
+}
+
+.flow-active {
+  color: #27ae60;
+}
+
+.flow-inactive {
+  color: #e67e22;
+}
+
+.flow-editor {
+  padding: 0.5rem 0;
+}
+
+.flow-editor h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.2rem;
+}
+
+.flow-hint {
+  color: #888;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.flow-hint code {
+  background: #f0f0f0;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.flow-error {
+  background: #fff0f0;
+  color: #c0392b;
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.flow-fields {
+  margin-bottom: 1.5rem;
+}
+
+.save-flow-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  transition: transform 0.2s ease;
+}
+
+.save-flow-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.save-flow-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.flow-steps-section {
+  border-top: 1px solid #e1e5eb;
+  padding-top: 1rem;
+}
+
+.flow-steps-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.flow-steps-header h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.add-step-btn {
+  background: #f0f0f0;
+  border: 1px dashed #aaa;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.add-step-btn:hover {
+  background: #e0e0e0;
+}
+
+.flow-preview {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.flow-initial-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid #e1e5eb;
+}
+
+.msg-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.msg-preview {
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.no-steps {
+  color: #999;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 1rem;
+}
+
+.steps-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.flow-step {
+  background: white;
+  border: 1px solid #e1e5eb;
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.flow-step-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.step-trigger {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #667eea;
+  flex: 1;
+}
+
+.step-badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.end-badge {
+  background: #f0f0f0;
+  color: #e74c3c;
+}
+
+.step-actions {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.step-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.2rem 0.3rem;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.step-btn:hover {
+  background: #f0f0f0;
+}
+
+.step-message {
+  font-size: 0.85rem;
+  color: #555;
+  padding-left: 0.5rem;
+  border-left: 2px solid #e1e5eb;
+  margin-left: 0.25rem;
+}
+
+.step-quick-replies {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  padding-left: 0.5rem;
+}
+
+.qr-preview {
+  background: #eef2ff;
+  color: #667eea;
+  padding: 0.25rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Step Add/Edit Form Overlay */
+
+.step-form-overlay {
+  margin-top: 1rem;
+  background: white;
+  border: 2px solid #667eea;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.step-form h4 {
+  margin: 0 0 0.75rem;
+  color: #333;
+}
+
+.step-parent-info {
+  color: #888;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.qr-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.qr-row input {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #e1e5eb;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.remove-qr-btn {
+  background: #fee;
+  color: #c0392b;
+  border: 1px solid #fcc;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.remove-qr-btn:hover {
+  background: #fcc;
+}
+
+.add-qr-btn {
+  background: #f0f0f0;
+  border: 1px dashed #aaa;
+  padding: 0.35rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: #555;
+}
+
+.add-qr-btn:hover {
+  background: #e0e0e0;
+}
+
+.step-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #eee;
+}

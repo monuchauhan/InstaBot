@@ -19,7 +19,7 @@ class SubscriptionService:
                 "max_accounts": settings.FREE_TIER_MAX_ACCOUNTS,
                 "max_automations": settings.FREE_TIER_MAX_AUTOMATIONS,
                 "max_actions_per_day": 50,
-                "features": ["auto_reply_comment"],
+                "features": ["auto_reply_comment", "send_dm"],
             },
             SubscriptionTier.PRO: {
                 "max_accounts": settings.PRO_TIER_MAX_ACCOUNTS,
