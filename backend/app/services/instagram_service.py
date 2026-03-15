@@ -217,3 +217,38 @@ async def disconnect_instagram_account(
 def get_decrypted_token(account: InstagramAccount) -> str:
     """Get the decrypted access token for an Instagram account."""
     return decrypt_token(account.access_token_encrypted)
+
+
+async def get_user_media(access_token: str, ig_user_id: str, limit: int = 50) -> list:
+    """Fetch the user's Instagram media (posts) with pagination.
+    
+    Returns a list of media objects with id, caption, media_type,
+    media_url, thumbnail_url, timestamp, and permalink.
+    """
+    all_media = []
+    url = (
+        f"https://graph.instagram.com/{settings.INSTAGRAM_GRAPH_API_VERSION}"
+        f"/me/media"
+    )
+    params = {
+        "fields": "id,caption,media_type,media_url,thumbnail_url,timestamp,permalink",
+        "limit": min(limit, 50),
+        "access_token": access_token,
+    }
+
+    async with httpx.AsyncClient() as client:
+        while url and len(all_media) < limit:
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+
+            media_list = data.get("data", [])
+            all_media.extend(media_list)
+
+            # Follow pagination cursor
+            paging = data.get("paging", {})
+            url = paging.get("next")
+            params = {}  # next URL already contains all params
+
+    logger.info(f"Fetched {len(all_media)} media items for user {ig_user_id}")
+    return all_media[:limit]

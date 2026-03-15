@@ -93,18 +93,21 @@ class AutomationSettingsBase(BaseModel):
 
 class AutomationSettingsCreate(AutomationSettingsBase):
     instagram_account_id: Optional[int] = None
+    target_post_id: Optional[str] = None  # Instagram media ID to scope to a specific post
 
 
 class AutomationSettingsUpdate(BaseModel):
     is_enabled: Optional[bool] = None
     template_message: Optional[str] = None
     trigger_keywords: Optional[List[str]] = None
+    target_post_id: Optional[str] = None
 
 
 class AutomationSettingsResponse(AutomationSettingsBase):
     id: int
     user_id: int
     instagram_account_id: Optional[int] = None
+    target_post_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     

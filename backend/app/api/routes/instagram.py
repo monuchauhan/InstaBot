@@ -10,6 +10,7 @@ from app.services import (
     get_instagram_account_by_id,
     connect_instagram_account,
     disconnect_instagram_account,
+    get_user_media,
 )
 from app.services.instagram_service import subscribe_to_webhooks, get_decrypted_token
 from app.api.deps import get_current_user
@@ -136,4 +137,35 @@ async def subscribe_account_webhooks(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to subscribe to webhooks. Check the backend logs."
+        )
+
+
+@router.get("/accounts/{account_id}/posts")
+async def get_account_posts(
+    account_id: int,
+    limit: int = Query(50, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch all posts (media) for a connected Instagram account.
+
+    Returns media items with id, caption, media_type, media_url,
+    thumbnail_url, timestamp, and permalink — suitable for rendering
+    an Instagram-style post grid.
+    """
+    account = await get_instagram_account_by_id(db, account_id, current_user.id)
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Instagram account not found"
+        )
+
+    access_token = get_decrypted_token(account)
+    try:
+        media = await get_user_media(access_token, account.instagram_user_id, limit=limit)
+        return media
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to fetch posts from Instagram: {str(e)}"
         )

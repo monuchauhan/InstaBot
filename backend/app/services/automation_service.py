@@ -36,15 +36,20 @@ async def get_automation_by_type(
     db: AsyncSession,
     user_id: int,
     automation_type: AutomationType,
-    instagram_account_id: Optional[int] = None
+    instagram_account_id: Optional[int] = None,
+    target_post_id: Optional[str] = None
 ) -> Optional[AutomationSettings]:
-    """Get automation settings by type for a user."""
+    """Get automation settings by type for a user, optionally scoped to a post."""
     query = select(AutomationSettings).where(
         AutomationSettings.user_id == user_id,
         AutomationSettings.automation_type == automation_type
     )
     if instagram_account_id:
         query = query.where(AutomationSettings.instagram_account_id == instagram_account_id)
+    if target_post_id:
+        query = query.where(AutomationSettings.target_post_id == target_post_id)
+    else:
+        query = query.where(AutomationSettings.target_post_id.is_(None))
     
     result = await db.execute(query)
     return result.scalar_one_or_none()
@@ -53,18 +58,41 @@ async def get_automation_by_type(
 async def get_enabled_automation_for_account(
     db: AsyncSession,
     instagram_user_id: str,
-    automation_type: AutomationType
+    automation_type: AutomationType,
+    target_post_id: Optional[str] = None
 ) -> Optional[AutomationSettings]:
-    """Get enabled automation for an Instagram account by Instagram user ID."""
-    from app.db.models import InstagramAccount
+    """Get enabled automation for an Instagram account by Instagram user ID.
     
+    When target_post_id is provided, looks for a post-specific automation first,
+    then falls back to a generic (no post) automation.
+    """
+    from app.db.models import InstagramAccount
+
+    if target_post_id:
+        # First try post-specific automation
+        result = await db.execute(
+            select(AutomationSettings)
+            .join(InstagramAccount, AutomationSettings.instagram_account_id == InstagramAccount.id)
+            .where(
+                InstagramAccount.instagram_user_id == instagram_user_id,
+                AutomationSettings.automation_type == automation_type,
+                AutomationSettings.is_enabled == True,
+                AutomationSettings.target_post_id == target_post_id,
+            )
+        )
+        automation = result.scalar_one_or_none()
+        if automation:
+            return automation
+
+    # Fall back to generic automation (no specific post)
     result = await db.execute(
         select(AutomationSettings)
         .join(InstagramAccount, AutomationSettings.instagram_account_id == InstagramAccount.id)
         .where(
             InstagramAccount.instagram_user_id == instagram_user_id,
             AutomationSettings.automation_type == automation_type,
-            AutomationSettings.is_enabled == True
+            AutomationSettings.is_enabled == True,
+            AutomationSettings.target_post_id.is_(None),
         )
     )
     return result.scalar_one_or_none()
@@ -76,12 +104,14 @@ async def create_automation_settings(
     settings_in: AutomationSettingsCreate
 ) -> AutomationSettings:
     """Create new automation settings."""
-    # Check if settings already exist for this type
+    # Check if settings already exist for this type + post combination
     existing = await get_automation_by_type(
-        db, user_id, settings_in.automation_type, settings_in.instagram_account_id
+        db, user_id, settings_in.automation_type,
+        settings_in.instagram_account_id,
+        settings_in.target_post_id,
     )
     if existing:
-        raise ValueError(f"Automation settings for {settings_in.automation_type} already exist")
+        raise ValueError(f"Automation settings for {settings_in.automation_type} already exist for this post")
     
     trigger_keywords = None
     if settings_in.trigger_keywords:
@@ -94,6 +124,7 @@ async def create_automation_settings(
         is_enabled=settings_in.is_enabled,
         template_message=settings_in.template_message,
         trigger_keywords=trigger_keywords,
+        target_post_id=settings_in.target_post_id,
     )
     db.add(automation)
     await db.flush()

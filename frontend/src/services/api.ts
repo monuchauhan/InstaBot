@@ -5,6 +5,7 @@ import {
   RegisterData,
   AuthTokens,
   InstagramAccount,
+  InstagramPost,
   AutomationSettings,
   AutomationCreate,
   AutomationUpdate,
@@ -128,6 +129,13 @@ export const instagramApi = {
   
   disconnectAccount: async (accountId: number): Promise<void> => {
     await api.delete(`/instagram/accounts/${accountId}`);
+  },
+  
+  getPosts: async (accountId: number, limit: number = 50): Promise<InstagramPost[]> => {
+    const response = await api.get<InstagramPost[]>(`/instagram/accounts/${accountId}/posts`, {
+      params: { limit },
+    });
+    return response.data;
   },
 };
 

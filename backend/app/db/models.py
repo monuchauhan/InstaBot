@@ -81,6 +81,7 @@ class AutomationSettings(Base):
     is_enabled = Column(Boolean, default=False)
     template_message = Column(Text, nullable=True)  # Template for auto-reply or DM
     trigger_keywords = Column(Text, nullable=True)  # JSON array of keywords that trigger the automation
+    target_post_id = Column(String(100), nullable=True, index=True)  # Instagram media ID to scope automation to a specific post
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -133,7 +134,7 @@ class ConversationFlow(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    automation = relationship("AutomationSettings", backref="conversation_flow")
+    automation = relationship("AutomationSettings", backref=backref("conversation_flow", passive_deletes=True, uselist=False))
     steps = relationship("ConversationStep", back_populates="flow", cascade="all, delete-orphan", order_by="ConversationStep.step_order")
 
 

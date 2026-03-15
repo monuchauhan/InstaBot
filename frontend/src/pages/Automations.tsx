@@ -4,6 +4,7 @@ import {
   AutomationSettings,
   AutomationType,
   InstagramAccount,
+  InstagramPost,
   ConversationFlow,
   ConversationStep,
   ConversationStepCreate,
@@ -395,6 +396,14 @@ const Automations: React.FC = () => {
   const [flowEditorAutomationId, setFlowEditorAutomationId] = useState<number | null>(null);
   const [flows, setFlows] = useState<Record<number, ConversationFlow>>({});  // keyed by automation_id
 
+  // Post selection state
+  const [posts, setPosts] = useState<InstagramPost[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<InstagramPost | null>(null);
+  const [editingPost, setEditingPost] = useState<InstagramPost | null>(null); // Post loaded when editing
+  const [loadingEditPost, setLoadingEditPost] = useState(false);
+  const [createStep, setCreateStep] = useState<'select-post' | 'configure'>('select-post');
+
   // Form state
   const [formType, setFormType] = useState<AutomationType>('auto_reply_comment');
   const [formAccountId, setFormAccountId] = useState<number | undefined>();
@@ -408,21 +417,49 @@ const Automations: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const [automationsData, accountsData, flowsData] = await Promise.all([
+      const [automationsResult, accountsResult, flowsResult] = await Promise.allSettled([
         automationApi.getAll(),
         instagramApi.getAccounts(),
         conversationFlowApi.getAll(),
       ]);
-      setAutomations(automationsData);
-      setAccounts(accountsData);
-      // Index flows by automation_id for quick lookup
-      const flowMap: Record<number, ConversationFlow> = {};
-      flowsData.forEach((f) => { flowMap[f.automation_id] = f; });
-      setFlows(flowMap);
+
+      if (accountsResult.status === 'fulfilled') {
+        setAccounts(accountsResult.value);
+      } else {
+        console.error('Failed to fetch accounts:', accountsResult.reason);
+      }
+
+      if (automationsResult.status === 'fulfilled') {
+        setAutomations(automationsResult.value);
+      } else {
+        console.error('Failed to fetch automations:', automationsResult.reason);
+      }
+
+      if (flowsResult.status === 'fulfilled') {
+        const flowMap: Record<number, ConversationFlow> = {};
+        flowsResult.value.forEach((f) => { flowMap[f.automation_id] = f; });
+        setFlows(flowMap);
+      } else {
+        console.error('Failed to fetch flows:', flowsResult.reason);
+      }
     } catch (err) {
       console.error('Failed to fetch data:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchPostsForAccount = async (accountId: number) => {
+    setLoadingPosts(true);
+    setPosts([]);
+    try {
+      const media = await instagramApi.getPosts(accountId);
+      setPosts(media);
+    } catch (err) {
+      console.error('Failed to fetch posts:', err);
+      setError('Failed to load posts from Instagram. Please try again.');
+    } finally {
+      setLoadingPosts(false);
     }
   };
 
@@ -442,22 +479,66 @@ const Automations: React.FC = () => {
     setFormKeywords('');
     setFormEnabled(false);
     setEditingAutomation(null);
+    setSelectedPost(null);
+    setEditingPost(null);
+    setPosts([]);
+    setCreateStep('select-post');
   };
 
   const openCreateModal = () => {
     resetForm();
     setFormAccountId(accounts[0]?.id);
+    setCreateStep('select-post');
     setShowModal(true);
+    // Fetch posts for the default account
+    if (accounts.length > 0) {
+      fetchPostsForAccount(accounts[0].id);
+    }
   };
 
-  const openEditModal = (automation: AutomationSettings) => {
+  const openEditModal = async (automation: AutomationSettings) => {
     setEditingAutomation(automation);
     setFormType(automation.automation_type);
     setFormAccountId(automation.instagram_account_id || undefined);
     setFormTemplate(automation.template_message || '');
     setFormKeywords(automation.trigger_keywords?.join(', ') || '');
     setFormEnabled(automation.is_enabled);
+    setSelectedPost(null);
+    setEditingPost(null);
+    setCreateStep('configure'); // Skip post selection when editing
     setShowModal(true);
+
+    // Fetch the linked post details if automation is post-specific
+    if (automation.target_post_id && automation.instagram_account_id) {
+      setLoadingEditPost(true);
+      try {
+        const media = await instagramApi.getPosts(automation.instagram_account_id);
+        const matched = media.find((p) => p.id === automation.target_post_id) || null;
+        setEditingPost(matched);
+      } catch (err) {
+        console.error('Failed to fetch post for editing:', err);
+      } finally {
+        setLoadingEditPost(false);
+      }
+    }
+  };
+
+  const handleAccountChange = (accountId: number) => {
+    setFormAccountId(accountId);
+    setSelectedPost(null);
+    fetchPostsForAccount(accountId);
+  };
+
+  const handlePostSelect = (post: InstagramPost) => {
+    setSelectedPost(post);
+  };
+
+  const handleProceedToConfigure = () => {
+    setCreateStep('configure');
+  };
+
+  const handleBackToPostSelect = () => {
+    setCreateStep('select-post');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -486,6 +567,7 @@ const Automations: React.FC = () => {
           is_enabled: formEnabled,
           template_message: formTemplate,
           trigger_keywords: keywords.length > 0 ? keywords : undefined,
+          target_post_id: selectedPost?.id,
         });
         setAutomations([...automations, created]);
       }
@@ -607,6 +689,15 @@ const Automations: React.FC = () => {
                     <span className="automation-account">
                       {getAccountUsername(automation.instagram_account_id)}
                     </span>
+                    {automation.target_post_id ? (
+                      <span className="automation-post-badge">
+                        📌 Post-specific
+                      </span>
+                    ) : (
+                      <span className="automation-post-badge automation-post-all">
+                        🌐 All posts
+                      </span>
+                    )}
                   </div>
                   <label className="toggle-switch">
                     <input
@@ -619,6 +710,14 @@ const Automations: React.FC = () => {
                 </div>
 
                 <div className="automation-card-body">
+                  {automation.target_post_id && (
+                    <div className="automation-field">
+                      <span className="field-label">Target Post</span>
+                      <span className="field-value post-id-value">
+                        📋 {automation.target_post_id}
+                      </span>
+                    </div>
+                  )}
                   <div className="automation-field">
                     <span className="field-label">Template Message</span>
                     <span className="field-value">
@@ -685,18 +784,204 @@ const Automations: React.FC = () => {
       </div>
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => { setShowModal(false); resetForm(); }}>
+          <div className={`modal ${!editingAutomation && createStep === 'select-post' ? 'modal-wide' : ''}`} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{editingAutomation ? 'Edit Automation' : 'Create Automation'}</h2>
-              <button className="modal-close" onClick={() => setShowModal(false)}>
+              <h2>
+                {editingAutomation
+                  ? 'Edit Automation'
+                  : createStep === 'select-post'
+                  ? 'Select a Post'
+                  : 'Configure Automation'}
+              </h2>
+              <button className="modal-close" onClick={() => { setShowModal(false); resetForm(); }}>
                 ×
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="modal-form">
-              {!editingAutomation && (
-                <>
+            {/* Step 1: Post Selection (only for new automations) */}
+            {!editingAutomation && createStep === 'select-post' && (
+              <div className="modal-form">
+                <div className="form-group">
+                  <label>Instagram Account</label>
+                  <select
+                    value={formAccountId}
+                    onChange={(e) => handleAccountChange(Number(e.target.value))}
+                  >
+                    {accounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        @{account.instagram_username || account.instagram_user_id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="post-selection-section">
+                  <p className="post-selection-hint">
+                    Select a post to create a post-specific automation, or skip to create an automation that applies to all posts.
+                  </p>
+
+                  {loadingPosts ? (
+                    <div className="posts-loading">
+                      <div className="loading-spinner"></div>
+                      <p>Loading your posts...</p>
+                    </div>
+                  ) : posts.length === 0 ? (
+                    <div className="posts-empty">
+                      <p>No posts found for this account.</p>
+                    </div>
+                  ) : (
+                    <div className="posts-grid">
+                      {posts.map((post) => (
+                        <div
+                          key={post.id}
+                          className={`post-grid-item ${selectedPost?.id === post.id ? 'post-selected' : ''}`}
+                          onClick={() => handlePostSelect(post)}
+                        >
+                          <div className="post-grid-image-wrapper">
+                            {post.media_type === 'VIDEO' ? (
+                              <img
+                                src={post.thumbnail_url || post.media_url || ''}
+                                alt={post.caption || 'Instagram post'}
+                                className="post-grid-image"
+                              />
+                            ) : (
+                              <img
+                                src={post.media_url || ''}
+                                alt={post.caption || 'Instagram post'}
+                                className="post-grid-image"
+                              />
+                            )}
+                            {post.media_type === 'VIDEO' && (
+                              <span className="post-type-badge">▶</span>
+                            )}
+                            {post.media_type === 'CAROUSEL_ALBUM' && (
+                              <span className="post-type-badge">❐</span>
+                            )}
+                            {selectedPost?.id === post.id && (
+                              <div className="post-selected-overlay">
+                                <span className="post-check">✓</span>
+                              </div>
+                            )}
+                          </div>
+                          {post.caption && (
+                            <div className="post-grid-caption">
+                              {post.caption.substring(0, 60)}{post.caption.length > 60 ? '…' : ''}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    className="cancel-button"
+                    onClick={() => { setShowModal(false); resetForm(); }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="skip-button"
+                    onClick={() => {
+                      setSelectedPost(null);
+                      handleProceedToConfigure();
+                    }}
+                  >
+                    Skip (All Posts)
+                  </button>
+                  <button
+                    type="button"
+                    className="save-button"
+                    onClick={handleProceedToConfigure}
+                    disabled={!selectedPost}
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Configure automation (or Edit mode) */}
+            {(editingAutomation || createStep === 'configure') && (
+              <form onSubmit={handleSubmit} className="modal-form">
+                {/* Show linked post when editing */}
+                {editingAutomation && editingAutomation.target_post_id && (
+                  <div className="selected-post-preview">
+                    {loadingEditPost ? (
+                      <div className="selected-post-loading">Loading post...</div>
+                    ) : editingPost ? (
+                      <>
+                        <div className="selected-post-thumb">
+                          <img
+                            src={editingPost.media_type === 'VIDEO'
+                              ? (editingPost.thumbnail_url || editingPost.media_url || '')
+                              : (editingPost.media_url || '')}
+                            alt="Linked post"
+                          />
+                        </div>
+                        <div className="selected-post-info">
+                          <span className="selected-post-label">Automation for this post:</span>
+                          <span className="selected-post-caption">
+                            {editingPost.caption
+                              ? (editingPost.caption.substring(0, 80) + (editingPost.caption.length > 80 ? '…' : ''))
+                              : 'No caption'}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="selected-post-info">
+                        <span className="selected-post-label">📌 Post-specific automation</span>
+                        <span className="selected-post-caption">Post ID: {editingAutomation.target_post_id}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {editingAutomation && !editingAutomation.target_post_id && (
+                  <div className="all-posts-notice">
+                    <span>🌐 This automation applies to <strong>all posts</strong>.</span>
+                  </div>
+                )}
+
+                {/* Show linked post when creating */}
+                {!editingAutomation && selectedPost && (
+                  <div className="selected-post-preview">
+                    <div className="selected-post-thumb">
+                      <img
+                        src={selectedPost.media_type === 'VIDEO'
+                          ? (selectedPost.thumbnail_url || selectedPost.media_url || '')
+                          : (selectedPost.media_url || '')}
+                        alt="Selected post"
+                      />
+                    </div>
+                    <div className="selected-post-info">
+                      <span className="selected-post-label">Automation for this post:</span>
+                      <span className="selected-post-caption">
+                        {selectedPost.caption
+                          ? (selectedPost.caption.substring(0, 80) + (selectedPost.caption.length > 80 ? '…' : ''))
+                          : 'No caption'}
+                      </span>
+                    </div>
+                    <button type="button" className="change-post-btn" onClick={handleBackToPostSelect}>
+                      Change
+                    </button>
+                  </div>
+                )}
+
+                {!editingAutomation && !selectedPost && (
+                  <div className="all-posts-notice">
+                    <span>🌐 This automation will apply to <strong>all posts</strong>.</span>
+                    <button type="button" className="change-post-btn" onClick={handleBackToPostSelect}>
+                      Select a post
+                    </button>
+                  </div>
+                )}
+
+                {!editingAutomation && (
                   <div className="form-group">
                     <label>Automation Type</label>
                     <select
@@ -707,70 +992,67 @@ const Automations: React.FC = () => {
                       <option value="send_dm">Send DM</option>
                     </select>
                   </div>
+                )}
 
-                  <div className="form-group">
-                    <label>Instagram Account</label>
-                    <select
-                      value={formAccountId}
-                      onChange={(e) => setFormAccountId(Number(e.target.value))}
-                    >
-                      {accounts.map((account) => (
-                        <option key={account.id} value={account.id}>
-                          @{account.instagram_username || account.instagram_user_id}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              )}
-
-              <div className="form-group">
-                <label>Template Message</label>
-                <textarea
-                  value={formTemplate}
-                  onChange={(e) => setFormTemplate(e.target.value)}
-                  placeholder="Enter the message template..."
-                  rows={4}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Trigger Keywords (comma-separated, optional)</label>
-                <input
-                  type="text"
-                  value={formKeywords}
-                  onChange={(e) => setFormKeywords(e.target.value)}
-                  placeholder="e.g., price, info, help"
-                />
-                <span className="form-hint">
-                  Leave empty to trigger on all comments
-                </span>
-              </div>
-
-              <div className="form-group form-checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={formEnabled}
-                    onChange={(e) => setFormEnabled(e.target.checked)}
+                <div className="form-group">
+                  <label>Template Message</label>
+                  <textarea
+                    value={formTemplate}
+                    onChange={(e) => setFormTemplate(e.target.value)}
+                    placeholder="Enter the message template..."
+                    rows={4}
                   />
-                  Enable automation
-                </label>
-              </div>
+                </div>
 
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="cancel-button"
-                  onClick={() => setShowModal(false)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="save-button">
-                  {editingAutomation ? 'Save Changes' : 'Create Automation'}
-                </button>
-              </div>
-            </form>
+                <div className="form-group">
+                  <label>Trigger Keywords (comma-separated, optional)</label>
+                  <input
+                    type="text"
+                    value={formKeywords}
+                    onChange={(e) => setFormKeywords(e.target.value)}
+                    placeholder="e.g., price, info, help"
+                  />
+                  <span className="form-hint">
+                    Leave empty to trigger on all comments
+                  </span>
+                </div>
+
+                <div className="form-group form-checkbox">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={formEnabled}
+                      onChange={(e) => setFormEnabled(e.target.checked)}
+                    />
+                    Enable automation
+                  </label>
+                </div>
+
+                {error && <div className="automations-error">{error}</div>}
+
+                <div className="modal-actions">
+                  {!editingAutomation && (
+                    <button
+                      type="button"
+                      className="cancel-button"
+                      onClick={handleBackToPostSelect}
+                    >
+                      ← Back
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="cancel-button"
+                    onClick={() => { setShowModal(false); resetForm(); }}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="save-button">
+                    {editingAutomation ? 'Save Changes' : 'Create Automation'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

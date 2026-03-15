@@ -14,6 +14,7 @@ from app.services.instagram_service import (
     connect_instagram_account,
     disconnect_instagram_account,
     get_decrypted_token,
+    get_user_media,
 )
 from app.services.automation_service import (
     get_automation_settings_by_id,
@@ -63,6 +64,7 @@ __all__ = [
     "connect_instagram_account",
     "disconnect_instagram_account",
     "get_decrypted_token",
+    "get_user_media",
     # Automation service
     "get_automation_settings_by_id",
     "get_user_automation_settings",

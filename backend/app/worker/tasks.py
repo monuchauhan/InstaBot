@@ -70,17 +70,33 @@ def process_comment_event(self, instagram_user_id: str, comment_data: dict):
         from_user = comment_data.get("from", {})
         commenter_id = from_user.get("id")
         
+        # Get the media (post) this comment belongs to
+        media_data = comment_data.get("media", {})
+        media_id = media_data.get("id")  # Instagram media ID of the post
+        
         # Ignore comments made by the account owner (prevents infinite reply loop)
         if commenter_id == instagram_user_id:
             logger.info(f"Ignoring self-comment from account owner ig_user_id={instagram_user_id}")
             return {"status": "skipped", "reason": "Self-comment ignored"}
         
-        # Check for auto-reply comment automation
-        auto_reply_settings = db.query(AutomationSettings).filter(
-            AutomationSettings.instagram_account_id == account.id,
-            AutomationSettings.automation_type == AutomationType.AUTO_REPLY_COMMENT,
-            AutomationSettings.is_enabled == True
-        ).first()
+        # ----- Auto-reply to comment -----
+        # First check for post-specific automation, then fall back to generic
+        auto_reply_settings = None
+        if media_id:
+            auto_reply_settings = db.query(AutomationSettings).filter(
+                AutomationSettings.instagram_account_id == account.id,
+                AutomationSettings.automation_type == AutomationType.AUTO_REPLY_COMMENT,
+                AutomationSettings.is_enabled == True,
+                AutomationSettings.target_post_id == media_id,
+            ).first()
+        if not auto_reply_settings:
+            # Fall back to generic (no post-specific) automation
+            auto_reply_settings = db.query(AutomationSettings).filter(
+                AutomationSettings.instagram_account_id == account.id,
+                AutomationSettings.automation_type == AutomationType.AUTO_REPLY_COMMENT,
+                AutomationSettings.is_enabled == True,
+                AutomationSettings.target_post_id.is_(None),
+            ).first()
         
         if auto_reply_settings:
             # Check if comment matches trigger keywords (if any)
@@ -101,12 +117,23 @@ def process_comment_event(self, instagram_user_id: str, comment_data: dict):
                     user_id=account.user_id,
                 )
         
-        # Check for send DM automation
-        dm_settings = db.query(AutomationSettings).filter(
-            AutomationSettings.instagram_account_id == account.id,
-            AutomationSettings.automation_type == AutomationType.SEND_DM,
-            AutomationSettings.is_enabled == True
-        ).first()
+        # ----- Send DM automation -----
+        # First check for post-specific automation, then fall back to generic
+        dm_settings = None
+        if media_id:
+            dm_settings = db.query(AutomationSettings).filter(
+                AutomationSettings.instagram_account_id == account.id,
+                AutomationSettings.automation_type == AutomationType.SEND_DM,
+                AutomationSettings.is_enabled == True,
+                AutomationSettings.target_post_id == media_id,
+            ).first()
+        if not dm_settings:
+            dm_settings = db.query(AutomationSettings).filter(
+                AutomationSettings.instagram_account_id == account.id,
+                AutomationSettings.automation_type == AutomationType.SEND_DM,
+                AutomationSettings.is_enabled == True,
+                AutomationSettings.target_post_id.is_(None),
+            ).first()
         
         if dm_settings and commenter_id:
             # Check if DM matches trigger keywords (if any)

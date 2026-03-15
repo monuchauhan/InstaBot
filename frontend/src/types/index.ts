@@ -55,6 +55,17 @@ export interface InstagramAccount {
   connected_at: string;
 }
 
+// Instagram Post/Media types
+export interface InstagramPost {
+  id: string;               // Instagram media ID
+  caption: string | null;
+  media_type: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM';
+  media_url: string | null;
+  thumbnail_url: string | null;  // For VIDEO media_type
+  timestamp: string;
+  permalink: string;
+}
+
 // Automation types
 export type AutomationType = 'auto_reply_comment' | 'send_dm';
 
@@ -66,6 +77,7 @@ export interface AutomationSettings {
   is_enabled: boolean;
   template_message: string | null;
   trigger_keywords: string[] | null;
+  target_post_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -76,12 +88,14 @@ export interface AutomationCreate {
   is_enabled?: boolean;
   template_message?: string;
   trigger_keywords?: string[];
+  target_post_id?: string;
 }
 
 export interface AutomationUpdate {
   is_enabled?: boolean;
   template_message?: string;
   trigger_keywords?: string[];
+  target_post_id?: string;
 }
 
 // Conversation Flow types
