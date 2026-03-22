@@ -32,6 +32,9 @@ from app.services.log_service import (
     get_recent_logs_for_account,
     check_dm_sent_in_window,
 )
+from app.services.analytics_service import (
+    get_dashboard_analytics,
+)
 from app.services.conversation_service import (
     get_flow_by_id,
     get_flow_by_automation_id,

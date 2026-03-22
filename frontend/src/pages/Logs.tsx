@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { logsApi } from '../services/api';
 import { ActionLog, ActionType } from '../types';
-import './Logs.css';
+import TopBar from '../components/TopBar';
 
 const Logs: React.FC = () => {
   const [logs, setLogs] = useState<ActionLog[]>([]);
@@ -37,30 +37,45 @@ const Logs: React.FC = () => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'success':
-        return '✅';
+        return 'check_circle';
       case 'failed':
-        return '❌';
+        return 'error';
       case 'pending':
-        return '⏳';
+        return 'schedule';
       case 'skipped':
-        return '⏭️';
+        return 'skip_next';
       default:
-        return '📋';
+        return 'info';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'success':
+        return 'text-emerald-600 bg-emerald-50';
+      case 'failed':
+        return 'text-red-600 bg-red-50';
+      case 'pending':
+        return 'text-yellow-600 bg-yellow-50';
+      case 'skipped':
+        return 'text-slate-600 bg-slate-50';
+      default:
+        return 'text-slate-600 bg-slate-50';
     }
   };
 
   const getActionIcon = (type: ActionType) => {
     switch (type) {
       case 'comment_reply':
-        return '💬';
+        return 'chat';
       case 'dm_sent':
-        return '✉️';
+        return 'send';
       case 'webhook_received':
-        return '📥';
+        return 'webhook';
       case 'error':
-        return '⚠️';
+        return 'warning';
       default:
-        return '🤖';
+        return 'smart_toy';
     }
   };
 
@@ -75,65 +90,75 @@ const Logs: React.FC = () => {
   const totalPages = Math.ceil(total / pageSize);
 
   return (
-    <div className="logs-page">
-      <div className="logs-header">
-        <div>
-          <h1>Activity Logs</h1>
-          <p>View all automation activities and events</p>
-        </div>
-      </div>
+    <div className="flex flex-col min-h-screen">
+      <TopBar title="Activity Logs" />
+      <main className="p-8">
+        {/* Filters */}
+        <div className="flex flex-wrap items-end gap-4 mb-8">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold uppercase tracking-wider text-outline">
+              Action Type
+            </label>
+            <select
+              value={filterType}
+              onChange={(e) => {
+                setFilterType(e.target.value as ActionType | '');
+                setPage(1);
+              }}
+              className="bg-surface-container-highest border-none rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              <option value="">All Types</option>
+              <option value="comment_reply">Comment Reply</option>
+              <option value="dm_sent">DM Sent</option>
+              <option value="webhook_received">Webhook Received</option>
+              <option value="error">Error</option>
+            </select>
+          </div>
 
-      <div className="logs-filters">
-        <div className="filter-group">
-          <label>Action Type</label>
-          <select
-            value={filterType}
-            onChange={(e) => {
-              setFilterType(e.target.value as ActionType | '');
-              setPage(1);
-            }}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold uppercase tracking-wider text-outline">
+              Status
+            </label>
+            <select
+              value={filterStatus}
+              onChange={(e) => {
+                setFilterStatus(e.target.value);
+                setPage(1);
+              }}
+              className="bg-surface-container-highest border-none rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              <option value="">All Statuses</option>
+              <option value="success">Success</option>
+              <option value="failed">Failed</option>
+              <option value="pending">Pending</option>
+              <option value="skipped">Skipped</option>
+            </select>
+          </div>
+
+          <button
+            onClick={fetchLogs}
+            className="flex items-center gap-2 px-4 py-2.5 bg-surface-container-lowest rounded-lg shadow-sm text-sm font-bold text-on-surface hover:bg-surface-container-low transition-colors"
           >
-            <option value="">All Types</option>
-            <option value="comment_reply">Comment Reply</option>
-            <option value="dm_sent">DM Sent</option>
-            <option value="webhook_received">Webhook Received</option>
-            <option value="error">Error</option>
-          </select>
+            <span className="material-symbols-outlined text-sm">refresh</span>
+            Refresh
+          </button>
         </div>
 
-        <div className="filter-group">
-          <label>Status</label>
-          <select
-            value={filterStatus}
-            onChange={(e) => {
-              setFilterStatus(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">All Statuses</option>
-            <option value="success">Success</option>
-            <option value="failed">Failed</option>
-            <option value="pending">Pending</option>
-            <option value="skipped">Skipped</option>
-          </select>
-        </div>
-
-        <button className="refresh-button" onClick={fetchLogs}>
-          🔄 Refresh
-        </button>
-      </div>
-
-      <div className="logs-content">
+        {/* Content */}
         {isLoading ? (
-          <div className="logs-loading">
-            <div className="loading-spinner"></div>
-            <p>Loading logs...</p>
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="loading-spinner" />
+            <p className="mt-4 text-on-surface-variant text-sm">Loading logs...</p>
           </div>
         ) : logs.length === 0 ? (
-          <div className="logs-empty">
-            <div className="empty-icon">📋</div>
-            <h2>No logs found</h2>
-            <p>
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <span className="material-symbols-outlined text-5xl text-outline mb-4">
+              description
+            </span>
+            <h2 className="text-xl font-bold text-on-surface mb-2 font-headline">
+              No logs found
+            </h2>
+            <p className="text-sm text-on-surface-variant">
               {filterType || filterStatus
                 ? 'Try adjusting your filters'
                 : 'Activity logs will appear here when automations run'}
@@ -141,37 +166,62 @@ const Logs: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="logs-table-wrapper">
-              <table className="logs-table">
+            <div className="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+              <table className="w-full">
                 <thead>
-                  <tr>
-                    <th>Status</th>
-                    <th>Type</th>
-                    <th>Message</th>
-                    <th>Details</th>
-                    <th>Date</th>
+                  <tr className="bg-surface-container-low">
+                    <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-outline">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-outline">
+                      Type
+                    </th>
+                    <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-outline">
+                      Message
+                    </th>
+                    <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-outline">
+                      Details
+                    </th>
+                    <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-outline">
+                      Date
+                    </th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-surface-container-low">
                   {logs.map((log) => (
-                    <tr key={log.id}>
-                      <td>
-                        <span className={`status-badge ${log.status}`}>
-                          {getStatusIcon(log.status)} {log.status}
+                    <tr
+                      key={log.id}
+                      className="hover:bg-surface-container-low/50 transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${getStatusColor(
+                            log.status
+                          )}`}
+                        >
+                          <span
+                            className="material-symbols-outlined text-xs"
+                            style={{ fontVariationSettings: "'FILL' 1" }}
+                          >
+                            {getStatusIcon(log.status)}
+                          </span>
+                          {log.status}
                         </span>
                       </td>
-                      <td>
-                        <span className="action-type">
-                          {getActionIcon(log.action_type)}{' '}
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center gap-2 text-sm font-medium text-on-surface">
+                          <span className="material-symbols-outlined text-sm text-primary">
+                            {getActionIcon(log.action_type)}
+                          </span>
                           {formatActionType(log.action_type)}
                         </span>
                       </td>
-                      <td className="message-cell">
+                      <td className="px-6 py-4 text-sm text-on-surface-variant max-w-xs truncate">
                         {log.message_sent || '-'}
                       </td>
-                      <td className="details-cell">
+                      <td className="px-6 py-4 text-sm text-on-surface-variant max-w-xs truncate">
                         {log.error_message ? (
-                          <span className="error-text">{log.error_message}</span>
+                          <span className="text-error">{log.error_message}</span>
                         ) : log.comment_id ? (
                           <span>Comment: {log.comment_id.substring(0, 12)}...</span>
                         ) : log.recipient_id ? (
@@ -180,41 +230,45 @@ const Logs: React.FC = () => {
                           '-'
                         )}
                       </td>
-                      <td className="date-cell">{formatDate(log.created_at)}</td>
+                      <td className="px-6 py-4 text-xs text-outline whitespace-nowrap">
+                        {formatDate(log.created_at)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            <div className="logs-pagination">
-              <span className="pagination-info">
-                Showing {(page - 1) * pageSize + 1} -{' '}
-                {Math.min(page * pageSize, total)} of {total}
-              </span>
-              <div className="pagination-buttons">
+            {/* Pagination */}
+            <div className="mt-8 flex items-center justify-between border-t border-outline-variant/20 pt-6">
+              <p className="text-sm text-on-surface-variant">
+                Showing <span className="font-bold">{(page - 1) * pageSize + 1}</span> -{' '}
+                <span className="font-bold">{Math.min(page * pageSize, total)}</span> of{' '}
+                <span className="font-bold">{total}</span>
+              </p>
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => setPage(page - 1)}
                   disabled={page === 1}
-                  className="pagination-button"
+                  className="p-2 rounded-lg hover:bg-surface-container-low text-outline disabled:opacity-30 transition-colors"
                 >
-                  ← Previous
+                  <span className="material-symbols-outlined">chevron_left</span>
                 </button>
-                <span className="page-number">
-                  Page {page} of {totalPages}
+                <span className="w-8 h-8 rounded-lg bg-primary text-white font-bold text-xs flex items-center justify-center">
+                  {page}
                 </span>
                 <button
                   onClick={() => setPage(page + 1)}
                   disabled={page >= totalPages}
-                  className="pagination-button"
+                  className="p-2 rounded-lg hover:bg-surface-container-low text-outline disabled:opacity-30 transition-colors"
                 >
-                  Next →
+                  <span className="material-symbols-outlined">chevron_right</span>
                 </button>
               </div>
             </div>
           </>
         )}
-      </div>
+      </main>
     </div>
   );
 };

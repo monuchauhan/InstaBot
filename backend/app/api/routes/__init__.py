@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.routes import auth, instagram, automations, logs, webhooks, conversation_flows
+from app.api.routes import auth, instagram, automations, logs, webhooks, conversation_flows, analytics, inbox
 
 api_router = APIRouter()
 
@@ -10,3 +10,5 @@ api_router.include_router(automations.router)
 api_router.include_router(conversation_flows.router)
 api_router.include_router(logs.router)
 api_router.include_router(webhooks.router)
+api_router.include_router(analytics.router)
+api_router.include_router(inbox.router)

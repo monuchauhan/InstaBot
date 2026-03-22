@@ -188,3 +188,61 @@ export interface ActionLogList {
 export interface ApiError {
   detail: string;
 }
+
+// Analytics types
+export interface DailyStatPoint {
+  date: string;
+  comments: number;
+  dms: number;
+  total: number;
+}
+
+export interface DashboardAnalytics {
+  total_comments_replied: number;
+  total_dms_sent: number;
+  total_errors: number;
+  total_actions: number;
+  comments_change_pct: number | null;
+  dms_change_pct: number | null;
+  actions_change_pct: number | null;
+  active_automations: number;
+  total_automations: number;
+  active_accounts: number;
+  daily_stats: DailyStatPoint[];
+  period_days: number;
+}
+
+// Inbox types
+export interface ConversationSummary {
+  recipient_id: string;
+  total_messages: number;
+  last_message: string;
+  last_action_type: string;
+  last_status: string;
+  last_timestamp: string;
+}
+
+export interface ConversationList {
+  conversations: ConversationSummary[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface InboxMessage {
+  id: number;
+  action_type: string;
+  status: string;
+  message: string;
+  comment_id: string | null;
+  details: string | null;
+  created_at: string;
+}
+
+export interface ConversationMessages {
+  messages: InboxMessage[];
+  total: number;
+  page: number;
+  page_size: number;
+  recipient_id: string;
+}

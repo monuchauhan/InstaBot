@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import './Pricing.css';
 
 interface PricingTier {
   name: string;
@@ -90,88 +89,125 @@ const Pricing: React.FC = () => {
   const currentTier = (user as any)?.subscription_tier;
 
   return (
-    <div className="pricing-page">
-      <div className="pricing-container">
+    <div className="min-h-screen bg-background py-16 px-4">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="pricing-header">
-          <h1>Simple, Transparent Pricing</h1>
-          <p>Choose the plan that fits your needs. Upgrade or downgrade anytime.</p>
+        <div className="text-center mb-16">
+          <h1 className="text-4xl lg:text-5xl font-headline font-extrabold text-on-surface mb-4">
+            Simple, Transparent Pricing
+          </h1>
+          <p className="text-on-surface-variant text-lg max-w-xl mx-auto">
+            Choose the plan that fits your needs. Upgrade or downgrade anytime.
+          </p>
         </div>
 
         {/* Pricing Cards */}
-        <div className="pricing-grid">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
           {tiers.map((tier) => (
             <div
               key={tier.name}
-              className={`pricing-card ${tier.highlighted ? 'highlighted' : ''}`}
+              className={`relative bg-surface-container-lowest rounded-2xl p-8 shadow-sm flex flex-col ${
+                tier.highlighted
+                  ? 'ring-2 ring-primary shadow-lg scale-[1.02]'
+                  : ''
+              }`}
             >
               {tier.highlighted && (
-                <div className="popular-badge">Most Popular</div>
-              )}
-              
-              <div className="pricing-card-content">
-                <h3>{tier.name}</h3>
-                <p className="description">{tier.description}</p>
-                
-                <div className="pricing-amount">
-                  <span className="price">{tier.price}</span>
-                  <span className="period">/{tier.period}</span>
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white px-4 py-1 rounded-full text-xs font-bold">
+                  Most Popular
                 </div>
+              )}
 
-                <button
-                  onClick={() => handleSelectPlan(tier)}
-                  className={`pricing-button ${tier.highlighted ? 'primary' : 'secondary'}`}
-                  disabled={currentTier === tier.tier}
-                >
-                  {currentTier === tier.tier ? 'Current Plan' : tier.buttonText}
-                </button>
+              <h3 className="text-xl font-headline font-extrabold text-on-surface mb-1">
+                {tier.name}
+              </h3>
+              <p className="text-sm text-on-surface-variant mb-6">
+                {tier.description}
+              </p>
 
-                <p className="features-title">What's included:</p>
-                <ul className="features-list">
-                  {tier.features.map((feature, index) => (
-                    <li key={index}>
-                      <span className="feature-check">✓</span>
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
+              <div className="flex items-baseline gap-1 mb-6">
+                <span className="text-4xl font-headline font-extrabold text-on-surface">
+                  {tier.price}
+                </span>
+                <span className="text-sm text-outline">/{tier.period}</span>
               </div>
+
+              <button
+                onClick={() => handleSelectPlan(tier)}
+                className={`w-full py-3 rounded-xl font-bold transition-all active:scale-95 mb-8 ${
+                  tier.highlighted
+                    ? 'bg-gradient-to-br from-primary to-primary-container text-white shadow-lg shadow-primary/20 hover:opacity-90'
+                    : 'bg-surface-container-high text-on-surface hover:bg-surface-container'
+                } disabled:opacity-50`}
+                disabled={currentTier === tier.tier}
+              >
+                {currentTier === tier.tier ? 'Current Plan' : tier.buttonText}
+              </button>
+
+              <p className="text-[10px] font-bold uppercase tracking-widest text-outline mb-4">
+                What&apos;s included
+              </p>
+              <ul className="space-y-3 flex-1">
+                {tier.features.map((feature, index) => (
+                  <li key={index} className="flex items-center gap-3 text-sm text-on-surface-variant">
+                    <span
+                      className="material-symbols-outlined text-primary text-sm"
+                      style={{ fontVariationSettings: "'FILL' 1" }}
+                    >
+                      check_circle
+                    </span>
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           ))}
         </div>
 
         {/* FAQ Section */}
-        <div className="faq-section">
-          <h2>Frequently Asked Questions</h2>
-          
-          <div className="faq-list">
-            <div className="faq-item">
-              <h3>Can I cancel anytime?</h3>
-              <p>Yes! You can cancel your subscription at any time. Your access will continue until the end of your billing period.</p>
-            </div>
-            
-            <div className="faq-item">
-              <h3>What payment methods do you accept?</h3>
-              <p>We accept all major credit cards including Visa, Mastercard, and American Express through our secure payment processor.</p>
-            </div>
-            
-            <div className="faq-item">
-              <h3>Do I need a Professional Instagram account?</h3>
-              <p>Yes, our automation features require a Professional (Business or Creator) Instagram account connected to a Facebook Page.</p>
-            </div>
-            
-            <div className="faq-item">
-              <h3>Is my data secure?</h3>
-              <p>Absolutely. We use industry-standard encryption (AES-256) to protect your access tokens and never store your Instagram password.</p>
-            </div>
+        <div className="max-w-3xl mx-auto mb-16">
+          <h2 className="text-2xl font-headline font-extrabold text-on-surface text-center mb-10">
+            Frequently Asked Questions
+          </h2>
+          <div className="space-y-6">
+            {[
+              {
+                q: 'Can I cancel anytime?',
+                a: 'Yes! You can cancel your subscription at any time. Your access will continue until the end of your billing period.',
+              },
+              {
+                q: 'What payment methods do you accept?',
+                a: 'We accept all major credit cards including Visa, Mastercard, and American Express through our secure payment processor.',
+              },
+              {
+                q: 'Do I need a Professional Instagram account?',
+                a: 'Yes, our automation features require a Professional (Business or Creator) Instagram account connected to a Facebook Page.',
+              },
+              {
+                q: 'Is my data secure?',
+                a: 'Absolutely. We use industry-standard encryption (AES-256) to protect your access tokens and never store your Instagram password.',
+              },
+            ].map((faq, i) => (
+              <div key={i} className="bg-surface-container-lowest rounded-xl p-6 shadow-sm">
+                <h3 className="font-bold text-on-surface mb-2">{faq.q}</h3>
+                <p className="text-sm text-on-surface-variant leading-relaxed">
+                  {faq.a}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
 
         {/* Back to Dashboard */}
         {user && (
-          <button className="back-link" onClick={() => navigate('/dashboard')}>
-            ← Back to Dashboard
-          </button>
+          <div className="text-center">
+            <button
+              className="text-primary font-bold hover:underline"
+              onClick={() => navigate('/dashboard')}
+            >
+              ← Back to Dashboard
+            </button>
+          </div>
         )}
       </div>
     </div>

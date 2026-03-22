@@ -234,6 +234,30 @@ class WebhookVerification(BaseModel):
     hub_challenge: str = Field(..., alias="hub.challenge")
 
 
+# ============= Analytics Schemas =============
+
+class DailyStatPoint(BaseModel):
+    date: str
+    comments: int = 0
+    dms: int = 0
+    total: int = 0
+
+
+class DashboardAnalyticsResponse(BaseModel):
+    total_comments_replied: int = 0
+    total_dms_sent: int = 0
+    total_errors: int = 0
+    total_actions: int = 0
+    comments_change_pct: Optional[float] = None
+    dms_change_pct: Optional[float] = None
+    actions_change_pct: Optional[float] = None
+    active_automations: int = 0
+    total_automations: int = 0
+    active_accounts: int = 0
+    daily_stats: List[DailyStatPoint] = []
+    period_days: int = 30
+
+
 class WebhookComment(BaseModel):
     id: str
     text: str

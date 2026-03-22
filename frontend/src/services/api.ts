@@ -16,6 +16,9 @@ import {
   ConversationStep,
   ConversationStepCreate,
   ConversationStepUpdate,
+  DashboardAnalytics,
+  ConversationList,
+  ConversationMessages,
 } from '../types';
 
 // Use relative URL so requests go to the same host that served the page.
@@ -235,6 +238,42 @@ export const logsApi = {
     if (status) params.append('status', status);
     
     const response = await api.get<ActionLogList>(`/logs?${params.toString()}`);
+    return response.data;
+  },
+};
+
+// Analytics API
+export const analyticsApi = {
+  getDashboard: async (days: number = 30): Promise<DashboardAnalytics> => {
+    const response = await api.get<DashboardAnalytics>('/analytics/dashboard', {
+      params: { days },
+    });
+    return response.data;
+  },
+};
+
+// Inbox API
+export const inboxApi = {
+  getConversations: async (
+    page: number = 1,
+    pageSize: number = 20,
+    filterType?: string
+  ): Promise<ConversationList> => {
+    const params: Record<string, string | number> = { page, page_size: pageSize };
+    if (filterType) params.filter_type = filterType;
+    const response = await api.get<ConversationList>('/inbox/conversations', { params });
+    return response.data;
+  },
+
+  getMessages: async (
+    recipientId: string,
+    page: number = 1,
+    pageSize: number = 50
+  ): Promise<ConversationMessages> => {
+    const response = await api.get<ConversationMessages>(
+      `/inbox/conversations/${encodeURIComponent(recipientId)}/messages`,
+      { params: { page, page_size: pageSize } }
+    );
     return response.data;
   },
 };
