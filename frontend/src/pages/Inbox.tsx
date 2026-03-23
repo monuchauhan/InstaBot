@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import TopBar from '../components/TopBar';
 import { inboxApi } from '../services/api';
 import { ConversationSummary, InboxMessage } from '../types';
+import { useSidebar } from '../App';
 
 type FilterType = 'all' | 'comments' | 'dms' | 'automated';
 
 const Inbox: React.FC = () => {
+  const { toggleSidebar } = useSidebar();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [totalConversations, setTotalConversations] = useState(0);
   const [filter, setFilter] = useState<FilterType>('all');
@@ -80,13 +82,13 @@ const Inbox: React.FC = () => {
       case 'dm_sent':
         return (
           <span className="text-[9px] uppercase tracking-wider font-bold bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">
-            DM Sent
+            Bot
           </span>
         );
       case 'dm_response':
         return (
           <span className="text-[9px] uppercase tracking-wider font-bold bg-green-50 text-green-600 px-1.5 py-0.5 rounded">
-            Reply
+            Received
           </span>
         );
       default:
@@ -102,13 +104,18 @@ const Inbox: React.FC = () => {
     (c) => c.recipient_id === activeRecipient
   );
 
+  /** Display name: prefer @username, fall back to truncated ID */
+  const displayName = (convo: ConversationSummary) =>
+    convo.recipient_username ? `@${convo.recipient_username}` : convo.recipient_id;
+  const activeDisplayName = activeConvo ? displayName(activeConvo) : activeRecipient || '';
+
   return (
     <div className="flex flex-col h-screen">
-      <TopBar searchPlaceholder="Search conversations..." />
+      <TopBar searchPlaceholder="Search conversations..." onMenuToggle={toggleSidebar} />
       <div className="flex-1 flex overflow-hidden">
-        {/* Left: Conversation List */}
-        <section className="w-80 lg:w-96 bg-surface-container-low flex flex-col border-r border-transparent">
-          <div className="p-6">
+        {/* Left: Conversation List - hidden on mobile when a chat is active */}
+        <section className={`w-full md:w-80 lg:w-96 bg-surface-container-low flex flex-col border-r border-transparent ${activeRecipient ? 'hidden md:flex' : 'flex'}`}>
+          <div className="p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-extrabold tracking-tight font-headline">
                 Messages
@@ -171,13 +178,13 @@ const Inbox: React.FC = () => {
                   <div className="flex gap-3">
                     <div className="relative flex-shrink-0">
                       <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white font-bold">
-                        {convo.recipient_id.slice(0, 2).toUpperCase()}
+                        {(convo.recipient_username || convo.recipient_id).slice(0, 2).toUpperCase()}
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start">
                         <h4 className="font-bold text-sm truncate">
-                          {convo.recipient_id}
+                          {displayName(convo)}
                         </h4>
                         <span className="text-[10px] text-slate-400 font-medium shrink-0">
                           {formatTime(convo.last_timestamp)}
@@ -202,8 +209,8 @@ const Inbox: React.FC = () => {
           </div>
         </section>
 
-        {/* Center: Chat Window */}
-        <section className="flex-1 flex flex-col bg-white">
+        {/* Center: Chat Window - takes full width on mobile */}
+        <section className={`flex-1 flex flex-col bg-white ${!activeRecipient ? 'hidden md:flex' : 'flex'}`}>
           {!activeRecipient ? (
             <div className="flex-1 flex flex-col items-center justify-center">
               <span className="material-symbols-outlined text-6xl text-surface-container-high mb-4">
@@ -219,14 +226,21 @@ const Inbox: React.FC = () => {
           ) : (
             <>
               {/* Chat Header */}
-              <div className="px-8 py-4 flex items-center justify-between bg-white shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] z-10">
-                <div className="flex items-center gap-4">
+              <div className="px-4 sm:px-8 py-3 sm:py-4 flex items-center justify-between bg-white shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] z-10">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  {/* Back button - mobile only */}
+                  <button
+                    onClick={() => setActiveRecipient(null)}
+                    className="p-1.5 -ml-1 rounded-lg hover:bg-surface-container text-slate-500 md:hidden"
+                  >
+                    <span className="material-symbols-outlined">arrow_back</span>
+                  </button>
                   <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm">
-                    {activeRecipient.slice(0, 2).toUpperCase()}
+                    {(activeConvo?.recipient_username || activeRecipient || '').slice(0, 2).toUpperCase()}
                   </div>
                   <div>
                     <h3 className="font-bold text-base leading-tight">
-                      {activeRecipient}
+                      {activeDisplayName}
                     </h3>
                     <p className="text-[11px] text-slate-500 font-medium">
                       {activeConvo?.total_messages ?? 0} messages
@@ -243,7 +257,7 @@ const Inbox: React.FC = () => {
               </div>
 
               {/* Chat History */}
-              <div className="flex-1 overflow-y-auto p-8 space-y-6">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-1">
                 {loadingMessages ? (
                   <div className="flex justify-center py-12">
                     <div className="loading-spinner" />
@@ -254,67 +268,121 @@ const Inbox: React.FC = () => {
                   </p>
                 ) : (
                   <>
-                    {/* Date Separator */}
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1 h-px bg-surface-container" />
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        Automation History
-                      </span>
-                      <div className="flex-1 h-px bg-surface-container" />
-                    </div>
-
-                    {messages.map((msg) => {
+                    {messages.map((msg, idx) => {
                       const isBot =
                         msg.action_type === 'dm_sent' ||
                         msg.action_type === 'comment_reply';
+
+                      // Determine grouping: is the previous message from the same sender?
+                      const prevMsg = idx > 0 ? messages[idx - 1] : null;
+                      const prevIsBot = prevMsg
+                        ? prevMsg.action_type === 'dm_sent' ||
+                          prevMsg.action_type === 'comment_reply'
+                        : null;
+                      const isFirstInGroup = prevIsBot === null || isBot !== prevIsBot;
+
+                      // Is the next message from the same sender?
+                      const nextMsg = idx < messages.length - 1 ? messages[idx + 1] : null;
+                      const nextIsBot = nextMsg
+                        ? nextMsg.action_type === 'dm_sent' ||
+                          nextMsg.action_type === 'comment_reply'
+                        : null;
+                      const isLastInGroup = nextIsBot === null || isBot !== nextIsBot;
+
+                      // Dynamic border-radius for grouped bubbles
+                      const botRadius = `${isFirstInGroup ? '1rem' : '0.25rem'} 1rem 1rem ${isLastInGroup ? '1rem' : '0.25rem'}`;
+                      const userRadius = `1rem ${isFirstInGroup ? '1rem' : '0.25rem'} ${isLastInGroup ? '0.25rem' : '0.25rem'} 1rem`;
+                      // Actually for user: top-left always round, top-right sharp on continuation
+                      const userRadiusFinal = `1rem ${isFirstInGroup ? '1rem' : '0.25rem'} ${isLastInGroup ? '1rem' : '0.25rem'} 1rem`;
+
                       return (
                         <div
                           key={msg.id}
-                          className={`flex flex-col gap-1 max-w-[80%] ${
-                            isBot ? 'items-start' : 'items-end ml-auto'
-                          }`}
+                          className={`flex ${isBot ? 'justify-start' : 'justify-end'} ${isFirstInGroup ? 'mt-4' : 'mt-0.5'}`}
                         >
+                          {/* Bot avatar - only on first bubble in group */}
                           {isBot && (
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="material-symbols-outlined text-blue-600 text-xs">
-                                smart_toy
-                              </span>
-                              <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">
-                                Automation Bot
-                              </span>
+                            <div className="w-8 h-8 mr-2 flex-shrink-0 self-end">
+                              {isLastInGroup ? (
+                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                  <span className="material-symbols-outlined text-blue-600 text-sm">
+                                    smart_toy
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="w-8 h-8" /> /* spacer */
+                              )}
                             </div>
                           )}
+
                           <div
-                            className={`px-5 py-3 rounded-2xl font-medium text-sm leading-relaxed ${
-                              isBot
-                                ? 'bg-surface-container-low text-on-surface rounded-tl-none'
-                                : 'bg-gradient-to-br from-primary to-primary-container text-white rounded-tr-none shadow-lg shadow-blue-500/10'
+                            className={`flex flex-col max-w-[75%] sm:max-w-[65%] ${
+                              isBot ? 'items-start' : 'items-end'
                             }`}
                           >
-                            {msg.message || 'No content'}
+                            {/* Sender name - only on first bubble of a group */}
+                            {isFirstInGroup && (
+                              <span className={`text-[10px] font-semibold mb-1 px-1 ${
+                                isBot ? 'text-slate-400' : 'text-slate-400'
+                              }`}>
+                                {isBot ? 'Bot' : activeDisplayName}
+                              </span>
+                            )}
+
+                            {/* Bubble */}
+                            <div
+                              className={`px-3.5 py-2 sm:px-4 sm:py-2.5 text-[13px] sm:text-sm leading-relaxed ${
+                                isBot
+                                  ? 'bg-surface-container-low text-on-surface'
+                                  : 'bg-primary text-white'
+                              }`}
+                              style={{
+                                borderRadius: isBot ? botRadius : userRadiusFinal,
+                              }}
+                            >
+                              {msg.message || 'No content'}
+                            </div>
+
+                            {/* Timestamp - only on last bubble in group */}
+                            {isLastInGroup && (
+                              <span className="text-[10px] text-slate-400 mt-1 px-1">
+                                {formatFullTime(msg.created_at)}
+                              </span>
+                            )}
                           </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-[10px] text-slate-400">
-                              {formatFullTime(msg.created_at)}
-                            </span>
-                            {getActionBadge(msg.action_type)}
-                          </div>
+
+                          {/* User avatar - only on last bubble in group */}
+                          {!isBot && (
+                            <div className="w-8 h-8 ml-2 flex-shrink-0 self-end">
+                              {isLastInGroup ? (
+                                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                                  <span className="text-white text-xs font-bold">
+                                    {(activeConvo?.recipient_username || activeRecipient || 'U').slice(0, 1).toUpperCase()}
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="w-8 h-8" /> /* spacer */
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
+                    {/* Scroll anchor */}
+                    <div className="h-2" />
                   </>
                 )}
               </div>
 
               {/* Input Area (read-only hint) */}
-              <div className="p-6 border-t-0 bg-white">
+              <div className="p-3 sm:p-6 border-t-0 bg-white">
                 <div className="flex items-center gap-3 bg-surface-container-low p-3 rounded-xl">
                   <span className="material-symbols-outlined text-slate-400">
                     info
                   </span>
                   <p className="text-xs text-slate-500 flex-1">
-                    This is an automation log view. Messages are sent
-                    automatically by your configured flows.
+                    This shows the full conversation between your bot and this
+                    contact. Replies are handled automatically by your flows.
                   </p>
                 </div>
               </div>
@@ -327,10 +395,10 @@ const Inbox: React.FC = () => {
           {activeRecipient && activeConvo ? (
             <div className="p-8 flex flex-col items-center text-center">
               <div className="w-24 h-24 rounded-3xl bg-primary flex items-center justify-center text-white text-3xl font-bold mb-4 shadow-xl shadow-slate-200">
-                {activeRecipient.slice(0, 2).toUpperCase()}
+                {(activeConvo?.recipient_username || activeRecipient || '').slice(0, 2).toUpperCase()}
               </div>
               <h3 className="font-headline font-extrabold text-xl">
-                {activeRecipient}
+                {activeDisplayName}
               </h3>
               <p className="text-slate-500 text-sm font-medium mt-1">
                 Instagram User

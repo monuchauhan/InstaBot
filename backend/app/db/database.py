@@ -50,7 +50,36 @@ async def get_db():
 
 
 async def init_db():
-    """Initialize database tables."""
+    """Initialize database tables and apply pending column migrations.
+
+    ``create_all`` only creates tables that are missing; it never adds new
+    columns to existing tables.  The statements below fill that gap so that
+    deployments against an older schema are upgraded automatically.
+    """
     _init_async_engine()
+    from sqlalchemy import text
+
     async with engine.begin() as conn:
+        # Create any brand-new tables first.
         await conn.run_sync(Base.metadata.create_all)
+
+        # ---------- incremental enum value migrations ----------
+        # ADD VALUE IF NOT EXISTS is safe to run repeatedly (PostgreSQL 12+).
+        # We add both cases to cover however SQLAlchemy serialises the enum.
+        await conn.execute(text(
+            "ALTER TYPE actiontype ADD VALUE IF NOT EXISTS 'dm_response'"
+        ))
+        await conn.execute(text(
+            "ALTER TYPE actiontype ADD VALUE IF NOT EXISTS 'DM_RESPONSE'"
+        ))
+
+        # ---------- incremental column migrations ----------
+        # PostgreSQL's ADD COLUMN IF NOT EXISTS is safe to run repeatedly.
+        await conn.execute(text(
+            "ALTER TABLE action_logs "
+            "ADD COLUMN IF NOT EXISTS recipient_username VARCHAR(100) DEFAULT NULL"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE automation_settings "
+            "ADD COLUMN IF NOT EXISTS target_post_id VARCHAR(100) DEFAULT NULL"
+        ))

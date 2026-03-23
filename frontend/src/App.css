@@ -5,12 +5,20 @@
 
 .main-content {
   flex: 1;
-  margin-left: 5rem; /* w-20 = 5rem for small sidebar */
+  margin-left: 0; /* No margin on mobile - sidebar is overlay drawer */
   min-height: 100vh;
 }
 
+/* lg breakpoint: sidebar is visible as collapsed (w-20 = 5rem) */
 @media (min-width: 1024px) {
   .main-content {
-    margin-left: 16rem; /* w-64 = 16rem for expanded sidebar */
+    margin-left: 5rem;
+  }
+}
+
+/* xl breakpoint: sidebar is expanded (w-64 = 16rem) */
+@media (min-width: 1280px) {
+  .main-content {
+    margin-left: 16rem;
   }
 }

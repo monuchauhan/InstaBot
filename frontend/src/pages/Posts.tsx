@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import { instagramApi, automationApi } from '../services/api';
 import { InstagramAccount, InstagramPost, AutomationSettings } from '../types';
+import { useSidebar } from '../App';
 
 const PAGE_SIZE = 12;
 
 const Posts: React.FC = () => {
+  const { toggleSidebar } = useSidebar();
   const [accounts, setAccounts] = useState<InstagramAccount[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
   const [posts, setPosts] = useState<InstagramPost[]>([]);
@@ -94,15 +96,15 @@ const Posts: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <TopBar title="Posts" searchPlaceholder="Search by caption or date..." />
-      <main className="p-8 min-h-[calc(100vh-64px)]">
+      <TopBar title="Posts" searchPlaceholder="Search by caption or date..." onMenuToggle={toggleSidebar} />
+      <main className="p-4 sm:p-6 lg:p-8 min-h-[calc(100vh-56px)] sm:min-h-[calc(100vh-64px)]">
         {/* Header */}
-        <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="mb-8 sm:mb-12 flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6">
           <div>
             <p className="text-primary font-bold tracking-widest text-xs uppercase mb-2">
               Content Library
             </p>
-            <h1 className="text-4xl lg:text-5xl font-extrabold font-headline tracking-tight text-on-background">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold font-headline tracking-tight text-on-background">
               Post Automations
             </h1>
             <p className="text-on-surface-variant mt-2 max-w-xl">
@@ -110,7 +112,7 @@ const Posts: React.FC = () => {
               sequences directly from your visual grid.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             {accounts.length > 1 && (
               <select
                 value={selectedAccountId ?? ''}
@@ -286,7 +288,7 @@ const Posts: React.FC = () => {
 
             {/* Pagination */}
             {posts.length > PAGE_SIZE && (
-              <div className="mt-16 flex items-center justify-between border-t border-outline-variant/20 pt-8">
+              <div className="mt-8 sm:mt-16 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-outline-variant/20 pt-4 sm:pt-8">
                 <p className="text-sm text-on-surface-variant">
                   Showing{' '}
                   <span className="font-bold">
@@ -341,7 +343,7 @@ const Posts: React.FC = () => {
       {/* Floating Action Button */}
       <Link
         to="/automations"
-        className="fixed bottom-8 right-8 w-14 h-14 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-50"
+        className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 w-12 h-12 sm:w-14 sm:h-14 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-30"
       >
         <span
           className="material-symbols-outlined"

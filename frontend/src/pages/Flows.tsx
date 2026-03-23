@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import { automationApi } from '../services/api';
 import { AutomationSettings } from '../types';
+import { useSidebar } from '../App';
 
 const Flows: React.FC = () => {
   const [automations, setAutomations] = useState<AutomationSettings[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { toggleSidebar } = useSidebar();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -42,14 +44,14 @@ const Flows: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <TopBar title="Flows" searchPlaceholder="Search automations..." />
-      <main className="p-8 min-h-[calc(100vh-64px)]">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+      <TopBar title="Flows" searchPlaceholder="Search automations..." onMenuToggle={toggleSidebar} />
+      <main className="p-4 sm:p-6 lg:p-8 min-h-[calc(100vh-56px)] sm:min-h-[calc(100vh-64px)]">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 sm:mb-12 gap-4 sm:gap-6">
           <div>
             <p className="text-primary font-bold tracking-widest text-xs uppercase mb-2">
               Automation Flows
             </p>
-            <h1 className="text-4xl lg:text-5xl font-extrabold font-headline tracking-tight text-on-background">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold font-headline tracking-tight text-on-background">
               Your Flows
             </h1>
             <p className="text-on-surface-variant mt-2 max-w-xl">
@@ -70,7 +72,7 @@ const Flows: React.FC = () => {
             <div className="loading-spinner" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {automations.map((automation, index) => (
               <Link
                 key={automation.id}

@@ -11,6 +11,7 @@ import {
   QuickReplyOption,
 } from '../types';
 import TopBar from '../components/TopBar';
+import { useSidebar } from '../App';
 
 /** Extract a renderable error string from API error responses.
  *  Backend subscription checks return detail as {error, message, upgrade_url}. */
@@ -393,6 +394,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ automationId, flow, onFlowSaved
 // ============= Main Automations Component =============
 
 const Automations: React.FC = () => {
+  const { toggleSidebar } = useSidebar();
   const [automations, setAutomations] = useState<AutomationSettings[]>([]);
   const [accounts, setAccounts] = useState<InstagramAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -642,8 +644,8 @@ const Automations: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex flex-col min-h-screen">
-        <TopBar title="Automations" />
-        <div className="flex flex-col items-center justify-center flex-1">
+        <TopBar title="Automations" onMenuToggle={toggleSidebar} />
+        <div className="flex flex-col items-center justify-center flex-1 p-4">
           <div className="loading-spinner"></div>
           <p className="mt-4 text-on-surface-variant">Loading automations...</p>
         </div>
@@ -653,11 +655,11 @@ const Automations: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <TopBar title="Automations" />
-      <div className="p-8">
-      <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+      <TopBar title="Automations" onMenuToggle={toggleSidebar} />
+      <div className="p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 sm:mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-headline font-extrabold text-on-surface">Automations</h1>
+          <h1 className="text-2xl sm:text-3xl font-headline font-extrabold text-on-surface">Automations</h1>
           <p className="text-on-surface-variant text-sm mt-1">Configure auto-reply and DM automations for your Instagram accounts</p>
         </div>
         <button
@@ -692,7 +694,7 @@ const Automations: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
             {automations.map((automation) => (
               <div key={automation.id} className="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden border border-outline-variant/10 hover:shadow-md transition-all">
                 <div className="p-6">
@@ -801,7 +803,7 @@ const Automations: React.FC = () => {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => { setShowModal(false); resetForm(); }}>
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" onClick={() => { setShowModal(false); resetForm(); }}>
           <div className={`bg-surface-container-lowest rounded-2xl shadow-2xl w-full ${!editingAutomation && createStep === 'select-post' ? 'max-w-4xl' : 'max-w-lg'} max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between p-6 border-b border-outline-variant/10 sticky top-0 bg-surface-container-lowest z-10">
               <h2 className="text-xl font-headline font-extrabold">
@@ -849,7 +851,7 @@ const Automations: React.FC = () => {
                       <p className="text-sm text-on-surface-variant">No posts found for this account.</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[50vh] overflow-y-auto">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[50vh] overflow-y-auto">
                       {posts.map((post) => (
                         <div
                           key={post.id}
@@ -1075,7 +1077,7 @@ const Automations: React.FC = () => {
 
       {/* Conversation Flow Editor Modal */}
       {showFlowEditor && flowEditorAutomationId && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowFlowEditor(false)}>
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" onClick={() => setShowFlowEditor(false)}>
           <div className="bg-surface-container-lowest rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between p-6 border-b border-outline-variant/10 sticky top-0 bg-surface-container-lowest z-10">
               <h2 className="text-xl font-headline font-extrabold">Conversation Flow</h2>

@@ -3,9 +3,11 @@ import TopBar from '../components/TopBar';
 import { useAuth } from '../contexts/AuthContext';
 import { instagramApi } from '../services/api';
 import { InstagramAccount } from '../types';
+import { useSidebar } from '../App';
 
 const Settings: React.FC = () => {
   const { user } = useAuth();
+  const { toggleSidebar } = useSidebar();
   const [accounts, setAccounts] = useState<InstagramAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [fullName, setFullName] = useState(user?.full_name || '');
@@ -46,13 +48,13 @@ const Settings: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <TopBar title="Settings" />
-      <main className="p-8 max-w-7xl">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <TopBar title="Settings" onMenuToggle={toggleSidebar} />
+      <main className="p-4 sm:p-6 lg:p-8 max-w-7xl">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
           {/* Left Column */}
-          <div className="lg:col-span-7 flex flex-col gap-8">
+          <div className="lg:col-span-7 flex flex-col gap-6 sm:gap-8">
             {/* Account Info */}
-            <section className="bg-surface-container-lowest rounded-xl p-8 shadow-sm">
+            <section className="bg-surface-container-lowest rounded-xl p-5 sm:p-8 shadow-sm">
               <div className="mb-8">
                 <h2 className="text-2xl font-extrabold text-on-surface mb-2 font-headline">
                   Account Info
@@ -110,8 +112,8 @@ const Settings: React.FC = () => {
             </section>
 
             {/* Connected Accounts */}
-            <section className="bg-surface-container-lowest rounded-xl p-8 shadow-sm">
-              <div className="flex justify-between items-start mb-8">
+            <section className="bg-surface-container-lowest rounded-xl p-5 sm:p-8 shadow-sm">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 sm:mb-8">
                 <div>
                   <h2 className="text-2xl font-extrabold text-on-surface mb-2 font-headline">
                     Connected Instagram Accounts
@@ -195,9 +197,9 @@ const Settings: React.FC = () => {
           </div>
 
           {/* Right Column */}
-          <div className="lg:col-span-5 flex flex-col gap-8">
+          <div className="lg:col-span-5 flex flex-col gap-6 sm:gap-8">
             {/* Billing */}
-            <section className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 text-white relative overflow-hidden shadow-xl">
+            <section className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-5 sm:p-8 text-white relative overflow-hidden shadow-xl">
               <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/20 rounded-full blur-3xl" />
               <div className="relative z-10">
                 <div className="flex justify-between items-start mb-10">
@@ -257,7 +259,7 @@ const Settings: React.FC = () => {
             </section>
 
             {/* Security Checklist */}
-            <section className="bg-surface-container-low rounded-xl p-8">
+            <section className="bg-surface-container-low rounded-xl p-5 sm:p-8">
               <h3 className="text-sm font-bold uppercase tracking-widest text-outline mb-4">
                 Security Checklist
               </h3>

@@ -6,12 +6,14 @@ interface TopBarProps {
   title?: string;
   searchPlaceholder?: string;
   children?: React.ReactNode;
+  onMenuToggle?: () => void;
 }
 
 const TopBar: React.FC<TopBarProps> = ({
   title,
   searchPlaceholder = 'Search flows, users...',
   children,
+  onMenuToggle,
 }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -22,10 +24,20 @@ const TopBar: React.FC<TopBarProps> = ({
   };
 
   return (
-    <header className="flex justify-between items-center w-full h-16 px-8 sticky top-0 z-40 bg-white/80 backdrop-blur-md shadow-sm">
-      <div className="flex items-center gap-6 flex-1">
+    <header className="flex justify-between items-center w-full h-14 sm:h-16 px-4 sm:px-6 lg:px-8 sticky top-0 z-40 bg-white/80 backdrop-blur-md shadow-sm">
+      <div className="flex items-center gap-3 sm:gap-6 flex-1 min-w-0">
+        {/* Hamburger menu - mobile only */}
+        {onMenuToggle && (
+          <button
+            onClick={onMenuToggle}
+            className="p-2 -ml-2 text-slate-500 hover:text-primary transition-colors rounded-lg hover:bg-surface-container lg:hidden flex-shrink-0"
+            aria-label="Toggle menu"
+          >
+            <span className="material-symbols-outlined">menu</span>
+          </button>
+        )}
         {title && (
-          <h1 className="text-xl font-extrabold tracking-tight text-slate-900 font-headline">
+          <h1 className="text-base sm:text-xl font-extrabold tracking-tight text-slate-900 font-headline truncate">
             {title}
           </h1>
         )}
@@ -42,23 +54,23 @@ const TopBar: React.FC<TopBarProps> = ({
         {children}
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
         {/* Notifications */}
-        <div className="flex items-center gap-2">
-          <button className="p-2 text-slate-500 hover:text-primary transition-colors rounded-full hover:bg-surface-container">
-            <span className="material-symbols-outlined">notifications</span>
+        <div className="flex items-center gap-1 sm:gap-2">
+          <button className="p-1.5 sm:p-2 text-slate-500 hover:text-primary transition-colors rounded-full hover:bg-surface-container">
+            <span className="material-symbols-outlined text-xl sm:text-2xl">notifications</span>
           </button>
-          <button className="p-2 text-slate-500 hover:text-primary transition-colors rounded-full hover:bg-surface-container">
+          <button className="p-1.5 sm:p-2 text-slate-500 hover:text-primary transition-colors rounded-full hover:bg-surface-container hidden sm:block">
             <span className="material-symbols-outlined">help_outline</span>
           </button>
         </div>
 
         {/* Separator */}
-        <div className="h-8 w-px bg-surface-container-high" />
+        <div className="h-8 w-px bg-surface-container-high hidden sm:block" />
 
         {/* User Info */}
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:block text-right">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="hidden md:block text-right">
             <p className="text-sm font-semibold text-on-surface truncate max-w-[140px]">
               {user?.full_name || user?.email}
             </p>
@@ -66,7 +78,7 @@ const TopBar: React.FC<TopBarProps> = ({
               {user?.subscription_tier || 'Free'} Plan
             </p>
           </div>
-          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold">
+          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
             {(user?.full_name || user?.email || 'U')[0].toUpperCase()}
           </div>
           <button

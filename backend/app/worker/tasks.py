@@ -509,6 +509,7 @@ def send_dm_with_flow(
                 action_type=ActionType.DM_SENT,
                 status="skipped",
                 recipient_id=recipient_id,
+                recipient_username=commenter_username,
                 details=json.dumps({"reason": "Already sent DM within 24 hours"}),
             )
             db.add(log)
@@ -599,6 +600,7 @@ def send_dm_with_flow(
             action_type=ActionType.DM_SENT,
             status="success",
             recipient_id=recipient_id,
+            recipient_username=commenter_username,
             message_sent=message_text,
             comment_id=comment_id,
             details=json.dumps(result),
@@ -652,12 +654,38 @@ def process_dm_response(
         if sender_id == instagram_account_ig_id:
             return {"status": "skipped", "reason": "Self-message ignored"}
         
+        # Look up the username from a previous log entry for this sender
+        prev_log = db.query(ActionLog).filter(
+            ActionLog.recipient_id == sender_id,
+            ActionLog.recipient_username.isnot(None),
+            ActionLog.recipient_username != "",
+        ).order_by(ActionLog.id.desc()).first()
+        sender_username = prev_log.recipient_username if prev_log else ""
+        
+        # ── Always log the incoming user message so the full conversation
+        #    is visible in the Inbox, regardless of flow matching. ──
+        incoming_log = ActionLog(
+            user_id=account.user_id,
+            instagram_account_id=account.id,
+            action_type=ActionType.DM_RESPONSE,
+            status="received",
+            recipient_id=sender_id,
+            recipient_username=sender_username,
+            message_sent=message_text,
+            details=json.dumps({
+                "quick_reply_payload": quick_reply_payload,
+                "direction": "incoming",
+            }) if quick_reply_payload else json.dumps({"direction": "incoming"}),
+        )
+        db.add(incoming_log)
+        db.commit()
+        
         # Get active conversation state for this sender
         state = get_active_state_sync(db, account.id, sender_id)
         
         if not state:
             logger.info(f"No active conversation state for sender={sender_id}")
-            return {"status": "skipped", "reason": "No active conversation"}
+            return {"status": "received", "reason": "No active conversation"}
         
         # Use the quick_reply payload if available, otherwise try to match message text
         payload = quick_reply_payload or message_text.upper().replace(" ", "_")
@@ -669,19 +697,7 @@ def process_dm_response(
         
         if not next_step:
             logger.info(f"No matching step for payload='{payload}' in flow={state.flow_id}")
-            # Log the unmatched response
-            log = ActionLog(
-                user_id=account.user_id,
-                instagram_account_id=account.id,
-                action_type=ActionType.DM_RESPONSE,
-                status="skipped",
-                recipient_id=sender_id,
-                message_sent=message_text,
-                details=json.dumps({"reason": "No matching step", "payload": payload}),
-            )
-            db.add(log)
-            db.commit()
-            return {"status": "skipped", "reason": "No matching step"}
+            return {"status": "received", "reason": "No matching step"}
         
         access_token = decrypt_token(account.access_token_encrypted)
         
@@ -726,6 +742,7 @@ def process_dm_response(
             action_type=ActionType.DM_SENT,
             status="success",
             recipient_id=sender_id,
+            recipient_username=sender_username,
             message_sent=personalized_message,
             details=json.dumps({
                 "flow_step": next_step.id,

@@ -79,6 +79,30 @@ async def get_conversations(
     logs_result = await db.execute(logs_q)
     logs_map = {log.id: log for log in logs_result.scalars().all()}
 
+    # Also look up the best available username for each recipient.
+    # We query the most recent log that has a non-null recipient_username.
+    all_recipient_ids = [r.recipient_id for r in rows]
+    username_q = (
+        select(
+            ActionLog.recipient_id,
+            ActionLog.recipient_username,
+        )
+        .where(
+            and_(
+                ActionLog.user_id == user_id,
+                ActionLog.recipient_id.in_(all_recipient_ids),
+                ActionLog.recipient_username.isnot(None),
+                ActionLog.recipient_username != "",
+            )
+        )
+        .order_by(desc(ActionLog.id))
+    )
+    username_rows = (await db.execute(username_q)).all()
+    username_map: dict[str, str] = {}
+    for urow in username_rows:
+        if urow.recipient_id not in username_map:
+            username_map[urow.recipient_id] = urow.recipient_username
+
     conversations = []
     for row in rows:
         log = logs_map.get(row.latest_id)
@@ -87,6 +111,7 @@ async def get_conversations(
         conversations.append(
             {
                 "recipient_id": row.recipient_id,
+                "recipient_username": username_map.get(row.recipient_id) or log.recipient_username or "",
                 "total_messages": row.total_messages,
                 "last_message": log.message_sent or log.error_message or "",
                 "last_action_type": log.action_type.value if log.action_type else "",
@@ -148,6 +173,7 @@ async def get_conversation_messages(
                 "status": log.status or "",
                 "message": log.message_sent or log.error_message or "",
                 "comment_id": log.comment_id,
+                "recipient_username": log.recipient_username or "",
                 "details": log.details,
                 "created_at": log.created_at.isoformat() if log.created_at else "",
             }

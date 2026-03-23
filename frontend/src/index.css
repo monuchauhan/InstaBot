@@ -7,6 +7,11 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
@@ -16,6 +21,7 @@
     -moz-osx-font-smoothing: grayscale;
     @apply bg-background text-on-background;
     line-height: 1.5;
+    overscroll-behavior: none;
   }
 
   #root {

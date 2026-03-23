@@ -215,6 +215,7 @@ export interface DashboardAnalytics {
 // Inbox types
 export interface ConversationSummary {
   recipient_id: string;
+  recipient_username: string;
   total_messages: number;
   last_message: string;
   last_action_type: string;
@@ -235,6 +236,7 @@ export interface InboxMessage {
   status: string;
   message: string;
   comment_id: string | null;
+  recipient_username: string;
   details: string | null;
   created_at: string;
 }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, createContext, useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -16,19 +16,31 @@ import Pricing from './pages/Pricing';
 import InstagramCallback from './pages/InstagramCallback';
 import './App.css';
 
+// Sidebar context to share toggle state with child pages
+interface SidebarContextType {
+  toggleSidebar: () => void;
+}
+const SidebarContext = createContext<SidebarContextType>({ toggleSidebar: () => {} });
+export const useSidebar = () => useContext(SidebarContext);
+
 const AppLayout: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Pages that don't show the sidebar
   const noSidebarRoutes = ['/login', '/register', '/pricing'];
   const showSidebar = isAuthenticated && !noSidebarRoutes.includes(location.pathname);
 
+  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
+  const closeSidebar = () => setSidebarOpen(false);
+
   return (
-    <div className="app">
-      {showSidebar && <Sidebar />}
-      <main className={showSidebar ? 'main-content' : 'flex-1'}>
-        <Routes>
+    <SidebarContext.Provider value={{ toggleSidebar }}>
+      <div className="app">
+        {showSidebar && <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />}
+        <main className={showSidebar ? 'main-content' : 'flex-1'}>
+          <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -111,6 +123,7 @@ const AppLayout: React.FC = () => {
         </Routes>
       </main>
     </div>
+    </SidebarContext.Provider>
   );
 };
 

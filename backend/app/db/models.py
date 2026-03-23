@@ -109,6 +109,7 @@ class ActionLog(Base):
     details = Column(Text, nullable=True)  # JSON with action details
     comment_id = Column(String(100), nullable=True)
     recipient_id = Column(String(100), nullable=True)
+    recipient_username = Column(String(100), nullable=True)
     message_sent = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

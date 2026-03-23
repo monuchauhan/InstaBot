@@ -4,9 +4,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { analyticsApi, automationApi, logsApi } from '../services/api';
 import { AutomationSettings, ActionLog, DashboardAnalytics } from '../types';
 import TopBar from '../components/TopBar';
+import { useSidebar } from '../App';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const { toggleSidebar } = useSidebar();
   const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(null);
   const [automations, setAutomations] = useState<AutomationSettings[]>([]);
   const [recentLogs, setRecentLogs] = useState<ActionLog[]>([]);
@@ -95,41 +97,41 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <TopBar searchPlaceholder="Search flows, users..." />
-      <main className="p-8 min-h-[calc(100vh-64px)]">
+      <TopBar searchPlaceholder="Search flows, users..." onMenuToggle={toggleSidebar} />
+      <main className="p-4 sm:p-6 lg:p-8 min-h-[calc(100vh-56px)] sm:min-h-[calc(100vh-64px)]">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 sm:mb-12 gap-4 sm:gap-6">
           <div>
-            <p className="text-sm font-bold text-primary mb-1 uppercase tracking-widest">
+            <p className="text-xs sm:text-sm font-bold text-primary mb-1 uppercase tracking-widest">
               Dashboard Overview
             </p>
-            <h1 className="text-5xl font-headline font-extrabold tracking-tight text-on-surface">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-headline font-extrabold tracking-tight text-on-surface">
               Digital Architect.
             </h1>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3 flex-wrap">
             <Link
               to="/settings"
-              className="px-6 py-3 bg-white text-on-surface font-bold rounded-xl shadow-sm flex items-center gap-2 hover:bg-surface-container-low transition-all"
+              className="px-4 py-2.5 sm:px-6 sm:py-3 bg-white text-on-surface font-bold rounded-xl shadow-sm flex items-center gap-2 hover:bg-surface-container-low transition-all text-sm sm:text-base"
             >
-              <span className="material-symbols-outlined text-xl">link</span>
-              Connect Instagram
+              <span className="material-symbols-outlined text-lg sm:text-xl">link</span>
+              <span className="hidden sm:inline">Connect</span> Instagram
             </Link>
             <Link
               to="/automations"
-              className="px-6 py-3 bg-gradient-to-br from-primary to-primary-container text-white font-bold rounded-xl shadow-lg flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-all"
+              className="px-4 py-2.5 sm:px-6 sm:py-3 bg-gradient-to-br from-primary to-primary-container text-white font-bold rounded-xl shadow-lg flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-all text-sm sm:text-base"
             >
-              <span className="material-symbols-outlined text-xl">bolt</span>
+              <span className="material-symbols-outlined text-lg sm:text-xl">bolt</span>
               New Automation
             </Link>
           </div>
         </div>
 
         {/* Top Metrics (Bento Style) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <div className="bg-surface-container-lowest p-8 rounded-xl shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-12">
+          <div className="bg-surface-container-lowest p-5 sm:p-8 rounded-xl shadow-sm">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
                 <span className="material-symbols-outlined">comment</span>
               </div>
               {formatChangePct(analytics?.comments_change_pct ?? null) && (
@@ -144,15 +146,15 @@ const Dashboard: React.FC = () => {
                 </span>
               )}
             </div>
-            <p className="text-slate-500 font-medium mb-1">Comments Replied</p>
-            <p className="text-4xl font-headline font-extrabold text-on-surface">
+            <p className="text-slate-500 font-medium mb-1 text-sm sm:text-base">Comments Replied</p>
+            <p className="text-2xl sm:text-4xl font-headline font-extrabold text-on-surface">
               {(analytics?.total_comments_replied ?? 0).toLocaleString()}
             </p>
           </div>
 
-          <div className="bg-surface-container-lowest p-8 rounded-xl shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center">
+          <div className="bg-surface-container-lowest p-5 sm:p-8 rounded-xl shadow-sm">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center">
                 <span className="material-symbols-outlined">send</span>
               </div>
               {formatChangePct(analytics?.dms_change_pct ?? null) && (
@@ -167,15 +169,15 @@ const Dashboard: React.FC = () => {
                 </span>
               )}
             </div>
-            <p className="text-slate-500 font-medium mb-1">DMs Sent</p>
-            <p className="text-4xl font-headline font-extrabold text-on-surface">
+            <p className="text-slate-500 font-medium mb-1 text-sm sm:text-base">DMs Sent</p>
+            <p className="text-2xl sm:text-4xl font-headline font-extrabold text-on-surface">
               {(analytics?.total_dms_sent ?? 0).toLocaleString()}
             </p>
           </div>
 
-          <div className="bg-surface-container-lowest p-8 rounded-xl shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-lg flex items-center justify-center">
+          <div className="bg-surface-container-lowest p-5 sm:p-8 rounded-xl shadow-sm sm:col-span-2 md:col-span-1">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-50 text-orange-600 rounded-lg flex items-center justify-center">
                 <span className="material-symbols-outlined">insights</span>
               </div>
               {formatChangePct(analytics?.actions_change_pct ?? null) && (
@@ -190,17 +192,17 @@ const Dashboard: React.FC = () => {
                 </span>
               )}
             </div>
-            <p className="text-slate-500 font-medium mb-1">Total Actions</p>
-            <p className="text-4xl font-headline font-extrabold text-on-surface">
+            <p className="text-slate-500 font-medium mb-1 text-sm sm:text-base">Total Actions</p>
+            <p className="text-2xl sm:text-4xl font-headline font-extrabold text-on-surface">
               {(analytics?.total_actions ?? 0).toLocaleString()}
             </p>
           </div>
         </div>
 
         {/* Performance Chart + Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 mb-8 sm:mb-12">
           {/* Performance Graph */}
-          <div className="lg:col-span-2 bg-surface-container-lowest rounded-xl p-8 shadow-sm">
+          <div className="lg:col-span-2 bg-surface-container-lowest rounded-xl p-4 sm:p-8 shadow-sm">
             <div className="flex items-center justify-between mb-10">
               <h3 className="text-xl font-headline font-bold">
                 Performance History
@@ -285,7 +287,7 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Recent Activity */}
-          <div className="bg-surface-container-low rounded-xl p-8">
+          <div className="bg-surface-container-low rounded-xl p-4 sm:p-8">
             <h3 className="text-xl font-headline font-bold mb-6">
               Recent Activity
             </h3>
@@ -332,15 +334,15 @@ const Dashboard: React.FC = () => {
 
         {/* Active Automations */}
         <div>
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-2xl font-headline font-extrabold">
+          <div className="flex items-center justify-between mb-6 sm:mb-8">
+            <h3 className="text-xl sm:text-2xl font-headline font-extrabold">
               Active Automations
             </h3>
             <Link to="/flows" className="text-primary font-bold text-sm">
               Manage Flows →
             </Link>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {automations.slice(0, 3).map((a, i) => {
               const borderColors = [
                 'border-primary',

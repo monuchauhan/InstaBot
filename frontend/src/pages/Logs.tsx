@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { logsApi } from '../services/api';
 import { ActionLog, ActionType } from '../types';
 import TopBar from '../components/TopBar';
+import { useSidebar } from '../App';
 
 const Logs: React.FC = () => {
+  const { toggleSidebar } = useSidebar();
   const [logs, setLogs] = useState<ActionLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -91,10 +93,10 @@ const Logs: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <TopBar title="Activity Logs" />
-      <main className="p-8">
+      <TopBar title="Activity Logs" onMenuToggle={toggleSidebar} />
+      <main className="p-4 sm:p-6 lg:p-8">
         {/* Filters */}
-        <div className="flex flex-wrap items-end gap-4 mb-8">
+        <div className="flex flex-wrap items-end gap-3 sm:gap-4 mb-6 sm:mb-8">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold uppercase tracking-wider text-outline">
               Action Type
@@ -167,7 +169,8 @@ const Logs: React.FC = () => {
         ) : (
           <>
             <div className="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
-              <table className="w-full">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px]">
                 <thead>
                   <tr className="bg-surface-container-low">
                     <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-outline">
@@ -237,10 +240,11 @@ const Logs: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
 
             {/* Pagination */}
-            <div className="mt-8 flex items-center justify-between border-t border-outline-variant/20 pt-6">
+            <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-outline-variant/20 pt-4 sm:pt-6">
               <p className="text-sm text-on-surface-variant">
                 Showing <span className="font-bold">{(page - 1) * pageSize + 1}</span> -{' '}
                 <span className="font-bold">{Math.min(page * pageSize, total)}</span> of{' '}
