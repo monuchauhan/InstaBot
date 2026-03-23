@@ -136,6 +136,7 @@ class ConversationStepCreate(BaseModel):
     parent_step_id: Optional[int] = None
     step_order: int = 0
     payload_trigger: Optional[str] = None  # Which quick_reply payload triggers this step
+    button_title: Optional[str] = Field(None, max_length=20)  # User-visible quick reply button label (max 20 chars)
     message_text: str
     quick_replies: Optional[List[QuickReplyOption]] = None
     is_end_step: bool = False
@@ -145,6 +146,7 @@ class ConversationStepUpdate(BaseModel):
     """Update a conversation step."""
     step_order: Optional[int] = None
     payload_trigger: Optional[str] = None
+    button_title: Optional[str] = Field(None, max_length=20)
     message_text: Optional[str] = None
     quick_replies: Optional[List[QuickReplyOption]] = None
     is_end_step: Optional[bool] = None
@@ -156,6 +158,7 @@ class ConversationStepResponse(BaseModel):
     parent_step_id: Optional[int] = None
     step_order: int
     payload_trigger: Optional[str] = None
+    button_title: Optional[str] = None
     message_text: str
     quick_replies: Optional[List[QuickReplyOption]] = None
     is_end_step: bool

@@ -110,6 +110,7 @@ export interface ConversationStep {
   parent_step_id: number | null;
   step_order: number;
   payload_trigger: string | null;
+  button_title: string | null;
   message_text: string;
   quick_replies: QuickReplyOption[] | null;
   is_end_step: boolean;
@@ -122,6 +123,7 @@ export interface ConversationStepCreate {
   parent_step_id?: number | null;
   step_order?: number;
   payload_trigger?: string;
+  button_title?: string;
   message_text: string;
   quick_replies?: QuickReplyOption[];
   is_end_step?: boolean;
@@ -130,6 +132,7 @@ export interface ConversationStepCreate {
 export interface ConversationStepUpdate {
   step_order?: number;
   payload_trigger?: string;
+  button_title?: string;
   message_text?: string;
   quick_replies?: QuickReplyOption[];
   is_end_step?: boolean;

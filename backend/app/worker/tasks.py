@@ -548,7 +548,7 @@ def send_dm_with_flow(
                 for step in root_steps:
                     if step.payload_trigger:
                         quick_replies.append({
-                            "title": step.payload_trigger.replace("_", " ").title()[:20],
+                            "title": (step.button_title or step.payload_trigger.replace("_", " ").title())[:20],
                             "payload": step.payload_trigger,
                         })
             
@@ -680,6 +680,16 @@ def process_dm_response(
         db.add(incoming_log)
         db.commit()
         
+        # ── Only process quick-reply button taps.  If the user sent free
+        #    text (no quick_reply_payload), we've already logged the message
+        #    above for Inbox visibility — just stop here. ──
+        if not quick_reply_payload:
+            logger.info(
+                f"Ignoring free-text message from sender={sender_id} "
+                f"(no quick_reply_payload). Message logged for Inbox."
+            )
+            return {"status": "received", "reason": "Free-text ignored; only quick-reply buttons are processed"}
+
         # Get active conversation state for this sender
         state = get_active_state_sync(db, account.id, sender_id)
         
@@ -687,16 +697,13 @@ def process_dm_response(
             logger.info(f"No active conversation state for sender={sender_id}")
             return {"status": "received", "reason": "No active conversation"}
         
-        # Use the quick_reply payload if available, otherwise try to match message text
-        payload = quick_reply_payload or message_text.upper().replace(" ", "_")
-        
-        # Find the next step
+        # Find the next step matching the quick-reply payload
         next_step = find_next_step_sync(
-            db, state.flow_id, state.current_step_id, payload
+            db, state.flow_id, state.current_step_id, quick_reply_payload
         )
         
         if not next_step:
-            logger.info(f"No matching step for payload='{payload}' in flow={state.flow_id}")
+            logger.info(f"No matching step for payload='{quick_reply_payload}' in flow={state.flow_id}")
             return {"status": "received", "reason": "No matching step"}
         
         access_token = decrypt_token(account.access_token_encrypted)
@@ -716,7 +723,7 @@ def process_dm_response(
             if child_steps:
                 quick_replies = [
                     {
-                        "title": cs.payload_trigger.replace("_", " ").title()[:20] if cs.payload_trigger else f"Option {cs.step_order}",
+                        "title": (cs.button_title or (cs.payload_trigger.replace("_", " ").title() if cs.payload_trigger else f"Option {cs.step_order}"))[:20],
                         "payload": cs.payload_trigger or f"STEP_{cs.id}",
                     }
                     for cs in child_steps
@@ -746,7 +753,7 @@ def process_dm_response(
             message_sent=personalized_message,
             details=json.dumps({
                 "flow_step": next_step.id,
-                "trigger_payload": payload,
+                "trigger_payload": quick_reply_payload,
                 "api_response": result,
             }),
         )

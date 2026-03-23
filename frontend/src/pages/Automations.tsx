@@ -33,6 +33,7 @@ interface FlowEditorProps {
 
 interface StepFormData {
   payload_trigger: string;
+  button_title: string;
   message_text: string;
   quick_replies: QuickReplyOption[];
   is_end_step: boolean;
@@ -50,6 +51,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ automationId, flow, onFlowSaved
   const [parentStepId, setParentStepId] = useState<number | null>(null);
   const [stepForm, setStepForm] = useState<StepFormData>({
     payload_trigger: '',
+    button_title: '',
     message_text: '',
     quick_replies: [],
     is_end_step: false,
@@ -60,6 +62,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ automationId, flow, onFlowSaved
   const resetStepForm = () => {
     setStepForm({
       payload_trigger: '',
+      button_title: '',
       message_text: '',
       quick_replies: [],
       is_end_step: false,
@@ -107,6 +110,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ automationId, flow, onFlowSaved
         parent_step_id: parentStepId,
         step_order: steps.filter((s) => s.parent_step_id === parentStepId).length,
         payload_trigger: stepForm.payload_trigger || undefined,
+        button_title: stepForm.button_title || undefined,
         message_text: stepForm.message_text,
         quick_replies: stepForm.quick_replies.length > 0 ? stepForm.quick_replies : undefined,
         is_end_step: stepForm.is_end_step,
@@ -125,6 +129,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ automationId, flow, onFlowSaved
     try {
       const updated = await conversationFlowApi.updateStep(flow.id, editingStep.id, {
         payload_trigger: stepForm.payload_trigger || undefined,
+        button_title: stepForm.button_title || undefined,
         message_text: stepForm.message_text,
         quick_replies: stepForm.quick_replies.length > 0 ? stepForm.quick_replies : undefined,
         is_end_step: stepForm.is_end_step,
@@ -156,6 +161,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ automationId, flow, onFlowSaved
     setEditingStep(step);
     setStepForm({
       payload_trigger: step.payload_trigger || '',
+      button_title: step.button_title || '',
       message_text: step.message_text,
       quick_replies: step.quick_replies || [],
       is_end_step: step.is_end_step,
@@ -197,7 +203,11 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ automationId, flow, onFlowSaved
     <div key={step.id} className="border-l-2 border-outline-variant/30 pl-4 py-2" style={{ marginLeft: depth * 16 }}>
       <div className="flex items-center gap-3 mb-1">
         <span className="text-xs font-bold text-primary">
-          {step.payload_trigger ? `▸ "${step.payload_trigger.replace('_', ' ')}"` : '▸ Root Step'}
+          {step.button_title
+            ? `▸ "${step.button_title}"`
+            : step.payload_trigger
+              ? `▸ "${step.payload_trigger.replace('_', ' ')}"`
+              : '▸ Root Step'}
         </span>
         {step.is_end_step && <span className="text-[9px] font-bold text-white bg-slate-500 px-1.5 py-0.5 rounded-full">End</span>}
         <div className="flex items-center gap-1 ml-auto">
@@ -319,7 +329,22 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ automationId, flow, onFlowSaved
                   placeholder="e.g., GET_LINK (auto-uppercase)"
                   className="bg-surface-container-highest border-none rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-sm"
                 />
-                <p className="text-[10px] text-outline italic">Used as the quick reply button trigger.</p>
+                <p className="text-[10px] text-outline italic">Internal identifier for matching. Auto-uppercased.</p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-outline">Button Label</label>
+                <input
+                  type="text"
+                  value={stepForm.button_title}
+                  onChange={(e) =>
+                    setStepForm({ ...stepForm, button_title: e.target.value.slice(0, 20) })
+                  }
+                  placeholder="e.g., Get the Link (max 20 chars)"
+                  maxLength={20}
+                  className="bg-surface-container-highest border-none rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-sm"
+                />
+                <p className="text-[10px] text-outline italic">The text shown on the quick reply button the user taps (max 20 chars).</p>
               </div>
 
               <div className="flex flex-col gap-2">

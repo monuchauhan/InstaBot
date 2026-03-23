@@ -83,3 +83,7 @@ async def init_db():
             "ALTER TABLE automation_settings "
             "ADD COLUMN IF NOT EXISTS target_post_id VARCHAR(100) DEFAULT NULL"
         ))
+        await conn.execute(text(
+            "ALTER TABLE conversation_steps "
+            "ADD COLUMN IF NOT EXISTS button_title VARCHAR(20) DEFAULT NULL"
+        ))

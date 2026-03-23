@@ -152,6 +152,7 @@ class ConversationStep(Base):
     parent_step_id = Column(Integer, ForeignKey("conversation_steps.id", ondelete="SET NULL"), nullable=True)
     step_order = Column(Integer, default=0)  # Order among siblings
     payload_trigger = Column(String(255), nullable=True)  # The quick_reply payload that triggers this step
+    button_title = Column(String(20), nullable=True)  # User-visible label for the quick reply button (max 20 chars, Instagram limit)
     message_text = Column(Text, nullable=False)  # The message to send. Supports {username}
     quick_replies = Column(JSON, nullable=True)  # [{"title": "Get Link", "payload": "GET_LINK"}, ...]
     is_end_step = Column(Boolean, default=False)  # If true, conversation ends after this step
