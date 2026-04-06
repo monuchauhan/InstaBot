@@ -1,6 +1,6 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Enum, JSON
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Enum
+from sqlalchemy.orm import relationship
 import enum
 from app.db.database import Base
 
@@ -65,21 +65,22 @@ class InstagramAccount(Base):
     user = relationship("User", back_populates="instagram_accounts")
 
 
-class AutomationType(str, enum.Enum):
-    AUTO_REPLY_COMMENT = "auto_reply_comment"
-    SEND_DM = "send_dm"
-
-
 class AutomationSettings(Base):
-    """Automation configuration for each user."""
+    """Automation configuration for each user.
+    
+    Each automation replies to a comment on the post with one of
+    template_messages chosen at random, and sends a DM composed of a
+    greeting message followed by a list of links.
+    """
     __tablename__ = "automation_settings"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     instagram_account_id = Column(Integer, ForeignKey("instagram_accounts.id", ondelete="CASCADE"), nullable=True)
-    automation_type = Column(Enum(AutomationType), nullable=False)
     is_enabled = Column(Boolean, default=False)
-    template_message = Column(Text, nullable=True)  # Template for auto-reply or DM
+    template_messages = Column(Text, nullable=True)  # JSON array of comment reply templates (one chosen at random)
+    dm_greeting = Column(Text, nullable=True)  # Greeting DM message. Supports {username} placeholder
+    dm_links = Column(Text, nullable=True)  # JSON array of URLs to send after the greeting
     trigger_keywords = Column(Text, nullable=True)  # JSON array of keywords that trigger the automation
     target_post_id = Column(String(100), nullable=True, index=True)  # Instagram media ID to scope automation to a specific post
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -116,76 +117,3 @@ class ActionLog(Base):
     
     # Relationships
     user = relationship("User", back_populates="action_logs")
-
-
-class ConversationFlow(Base):
-    """A conversation flow template linked to an automation.
-    
-    Defines the multi-step DM conversation that gets triggered
-    when a comment matches the automation criteria.
-    """
-    __tablename__ = "conversation_flows"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    automation_id = Column(Integer, ForeignKey("automation_settings.id", ondelete="CASCADE"), nullable=False, unique=True)
-    name = Column(String(255), nullable=False)
-    description = Column(Text, nullable=True)
-    initial_message = Column(Text, nullable=False)  # Supports {username} placeholder
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    automation = relationship("AutomationSettings", backref=backref("conversation_flow", passive_deletes=True, uselist=False))
-    steps = relationship("ConversationStep", back_populates="flow", cascade="all, delete-orphan", order_by="ConversationStep.step_order")
-
-
-class ConversationStep(Base):
-    """A single step in a conversation flow.
-    
-    Each step has a message, optional quick reply buttons,
-    and links to child steps via payload matching.
-    """
-    __tablename__ = "conversation_steps"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    flow_id = Column(Integer, ForeignKey("conversation_flows.id", ondelete="CASCADE"), nullable=False)
-    parent_step_id = Column(Integer, ForeignKey("conversation_steps.id", ondelete="SET NULL"), nullable=True)
-    step_order = Column(Integer, default=0)  # Order among siblings
-    payload_trigger = Column(String(255), nullable=True)  # The quick_reply payload that triggers this step
-    button_title = Column(String(20), nullable=True)  # User-visible label for the quick reply button (max 20 chars, Instagram limit)
-    message_text = Column(Text, nullable=False)  # The message to send. Supports {username}
-    quick_replies = Column(JSON, nullable=True)  # [{"title": "Get Link", "payload": "GET_LINK"}, ...]
-    is_end_step = Column(Boolean, default=False)  # If true, conversation ends after this step
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    flow = relationship("ConversationFlow", back_populates="steps")
-    parent_step = relationship(
-        "ConversationStep",
-        remote_side=[id],
-        backref=backref("child_steps", lazy="noload"),
-    )
-
-
-class ConversationState(Base):
-    """Tracks where each user is in a conversation flow.
-    
-    When a DM is sent, we create a state entry so we know
-    which step to serve when the user replies.
-    """
-    __tablename__ = "conversation_states"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    instagram_account_id = Column(Integer, ForeignKey("instagram_accounts.id", ondelete="CASCADE"), nullable=False)
-    recipient_ig_id = Column(String(100), nullable=False, index=True)  # The DM recipient's IG scoped ID
-    flow_id = Column(Integer, ForeignKey("conversation_flows.id", ondelete="CASCADE"), nullable=False)
-    current_step_id = Column(Integer, ForeignKey("conversation_steps.id", ondelete="SET NULL"), nullable=True)  # NULL = awaiting response to initial message
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    flow = relationship("ConversationFlow")
-    current_step = relationship("ConversationStep")
-    instagram_account = relationship("InstagramAccount")

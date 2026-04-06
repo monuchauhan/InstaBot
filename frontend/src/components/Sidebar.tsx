@@ -10,9 +10,8 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { path: '/dashboard', label: 'Home', icon: 'home' },
-  { path: '/flows', label: 'Flows', icon: 'account_tree' },
+  { path: '/automations', label: 'Automations', icon: 'smart_toy' },
   { path: '/posts', label: 'Posts', icon: 'grid_view' },
-  { path: '/inbox', label: 'Inbox', icon: 'chat_bubble' },
   { path: '/settings', label: 'Settings', icon: 'settings' },
 ];
 

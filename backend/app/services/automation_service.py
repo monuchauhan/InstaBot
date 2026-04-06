@@ -2,7 +2,7 @@ from typing import Optional, List
 import json
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.models import AutomationSettings, AutomationType
+from app.db.models import AutomationSettings
 from app.schemas import AutomationSettingsCreate, AutomationSettingsUpdate
 
 
@@ -32,33 +32,9 @@ async def get_user_automation_settings(
     return list(result.scalars().all())
 
 
-async def get_automation_by_type(
-    db: AsyncSession,
-    user_id: int,
-    automation_type: AutomationType,
-    instagram_account_id: Optional[int] = None,
-    target_post_id: Optional[str] = None
-) -> Optional[AutomationSettings]:
-    """Get automation settings by type for a user, optionally scoped to a post."""
-    query = select(AutomationSettings).where(
-        AutomationSettings.user_id == user_id,
-        AutomationSettings.automation_type == automation_type
-    )
-    if instagram_account_id:
-        query = query.where(AutomationSettings.instagram_account_id == instagram_account_id)
-    if target_post_id:
-        query = query.where(AutomationSettings.target_post_id == target_post_id)
-    else:
-        query = query.where(AutomationSettings.target_post_id.is_(None))
-    
-    result = await db.execute(query)
-    return result.scalar_one_or_none()
-
-
 async def get_enabled_automation_for_account(
     db: AsyncSession,
     instagram_user_id: str,
-    automation_type: AutomationType,
     target_post_id: Optional[str] = None
 ) -> Optional[AutomationSettings]:
     """Get enabled automation for an Instagram account by Instagram user ID.
@@ -75,7 +51,6 @@ async def get_enabled_automation_for_account(
             .join(InstagramAccount, AutomationSettings.instagram_account_id == InstagramAccount.id)
             .where(
                 InstagramAccount.instagram_user_id == instagram_user_id,
-                AutomationSettings.automation_type == automation_type,
                 AutomationSettings.is_enabled == True,
                 AutomationSettings.target_post_id == target_post_id,
             )
@@ -90,7 +65,6 @@ async def get_enabled_automation_for_account(
         .join(InstagramAccount, AutomationSettings.instagram_account_id == InstagramAccount.id)
         .where(
             InstagramAccount.instagram_user_id == instagram_user_id,
-            AutomationSettings.automation_type == automation_type,
             AutomationSettings.is_enabled == True,
             AutomationSettings.target_post_id.is_(None),
         )
@@ -104,25 +78,25 @@ async def create_automation_settings(
     settings_in: AutomationSettingsCreate
 ) -> AutomationSettings:
     """Create new automation settings."""
-    # Check if settings already exist for this type + post combination
-    existing = await get_automation_by_type(
-        db, user_id, settings_in.automation_type,
-        settings_in.instagram_account_id,
-        settings_in.target_post_id,
-    )
-    if existing:
-        raise ValueError(f"Automation settings for {settings_in.automation_type} already exist for this post")
-    
     trigger_keywords = None
     if settings_in.trigger_keywords:
         trigger_keywords = json.dumps(settings_in.trigger_keywords)
     
+    template_messages = None
+    if settings_in.template_messages:
+        template_messages = json.dumps(settings_in.template_messages)
+    
+    dm_links = None
+    if settings_in.dm_links:
+        dm_links = json.dumps(settings_in.dm_links)
+    
     automation = AutomationSettings(
         user_id=user_id,
         instagram_account_id=settings_in.instagram_account_id,
-        automation_type=settings_in.automation_type,
         is_enabled=settings_in.is_enabled,
-        template_message=settings_in.template_message,
+        template_messages=template_messages,
+        dm_greeting=settings_in.dm_greeting,
+        dm_links=dm_links,
         trigger_keywords=trigger_keywords,
         target_post_id=settings_in.target_post_id,
     )
@@ -142,6 +116,12 @@ async def update_automation_settings(
     
     if "trigger_keywords" in update_data and update_data["trigger_keywords"] is not None:
         update_data["trigger_keywords"] = json.dumps(update_data["trigger_keywords"])
+    
+    if "template_messages" in update_data and update_data["template_messages"] is not None:
+        update_data["template_messages"] = json.dumps(update_data["template_messages"])
+    
+    if "dm_links" in update_data and update_data["dm_links"] is not None:
+        update_data["dm_links"] = json.dumps(update_data["dm_links"])
     
     for field, value in update_data.items():
         setattr(automation, field, value)

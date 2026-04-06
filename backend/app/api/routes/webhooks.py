@@ -7,7 +7,7 @@ from fastapi.responses import PlainTextResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.db import get_db
-from app.worker.tasks import process_comment_event, process_dm_response
+from app.worker.tasks import process_comment_event
 
 logger = logging.getLogger(__name__)
 
@@ -92,27 +92,6 @@ async def handle_instagram_webhook(
                 elif field == "mentions":
                     logger.info(f"Mention event received for {ig_user_id}")
                     # Could add mention processing here
-            
-            # Handle messaging webhooks (different structure)
-            for messaging_event in entry.get("messaging", []):
-                logger.info(f"Messaging event received for {ig_user_id}: {json.dumps(messaging_event)[:200]}")
-                
-                sender = messaging_event.get("sender", {})
-                sender_id = sender.get("id")
-                message = messaging_event.get("message", {})
-                message_text = message.get("text", "")
-                
-                # Check if this is a quick_reply response
-                quick_reply = message.get("quick_reply", {})
-                quick_reply_payload = quick_reply.get("payload")
-                
-                if sender_id and (message_text or quick_reply_payload):
-                    process_dm_response.delay(
-                        instagram_account_ig_id=ig_user_id,
-                        sender_id=sender_id,
-                        message_text=message_text,
-                        quick_reply_payload=quick_reply_payload,
-                    )
     else:
         logger.warning(f"Unexpected webhook object type: {payload.get('object')}")
     

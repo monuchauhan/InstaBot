@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { analyticsApi, automationApi, logsApi } from '../services/api';
-import { AutomationSettings, ActionLog, DashboardAnalytics } from '../types';
+import { analyticsApi, automationApi } from '../services/api';
+import { AutomationSettings, DashboardAnalytics } from '../types';
 import TopBar from '../components/TopBar';
 import { useSidebar } from '../App';
 
@@ -11,21 +11,18 @@ const Dashboard: React.FC = () => {
   const { toggleSidebar } = useSidebar();
   const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(null);
   const [automations, setAutomations] = useState<AutomationSettings[]>([]);
-  const [recentLogs, setRecentLogs] = useState<ActionLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [chartPeriod, setChartPeriod] = useState<7 | 30>(7);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [analyticsData, automationsData, logsData] = await Promise.all([
+        const [analyticsData, automationsData] = await Promise.all([
           analyticsApi.getDashboard(chartPeriod),
           automationApi.getAll(),
-          logsApi.getAll(1, 5),
         ]);
         setAnalytics(analyticsData);
         setAutomations(automationsData);
-        setRecentLogs(logsData.logs);
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
       } finally {
@@ -35,45 +32,6 @@ const Dashboard: React.FC = () => {
 
     fetchData();
   }, [chartPeriod]);
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'success':
-        return 'check_circle';
-      case 'failed':
-        return 'error';
-      case 'pending':
-        return 'schedule';
-      case 'skipped':
-        return 'skip_next';
-      default:
-        return 'info';
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'success':
-        return 'text-green-500';
-      case 'failed':
-        return 'text-red-500';
-      case 'pending':
-        return 'text-yellow-500';
-      default:
-        return 'text-slate-500';
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${mins} mins ago`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-    return date.toLocaleDateString();
-  };
 
   const formatChangePct = (pct: number | null) => {
     if (pct === null || pct === 0) return null;
@@ -199,10 +157,10 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Performance Chart + Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 mb-8 sm:mb-12">
+        {/* Performance Chart */}
+        <div className="grid grid-cols-1 gap-6 sm:gap-8 mb-8 sm:mb-12">
           {/* Performance Graph */}
-          <div className="lg:col-span-2 bg-surface-container-lowest rounded-xl p-4 sm:p-8 shadow-sm">
+          <div className="bg-surface-container-lowest rounded-xl p-4 sm:p-8 shadow-sm">
             <div className="flex items-center justify-between mb-10">
               <h3 className="text-xl font-headline font-bold">
                 Performance History
@@ -285,51 +243,6 @@ const Dashboard: React.FC = () => {
               </div>
             )}
           </div>
-
-          {/* Recent Activity */}
-          <div className="bg-surface-container-low rounded-xl p-4 sm:p-8">
-            <h3 className="text-xl font-headline font-bold mb-6">
-              Recent Activity
-            </h3>
-            {recentLogs.length === 0 ? (
-              <p className="text-sm text-on-surface-variant text-center py-4">
-                No recent activity.
-              </p>
-            ) : (
-              <div className="space-y-6">
-                {recentLogs.map((log) => (
-                  <div key={log.id} className="flex gap-4">
-                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shrink-0">
-                      <span
-                        className={`material-symbols-outlined text-sm ${getStatusColor(
-                          log.status
-                        )}`}
-                      >
-                        {getStatusIcon(log.status)}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold">
-                        {log.action_type.replace(/_/g, ' ')}
-                      </p>
-                      <p className="text-xs text-slate-500 line-clamp-1">
-                        {log.message_sent || log.error_message || 'No details'}
-                      </p>
-                      <p className="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-tight">
-                        {formatDate(log.created_at)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-                <Link
-                  to="/logs"
-                  className="block w-full py-3 text-xs font-bold text-primary border-t border-outline-variant/20 mt-4 hover:underline text-center"
-                >
-                  View All Logs
-                </Link>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Active Automations */}
@@ -338,8 +251,8 @@ const Dashboard: React.FC = () => {
             <h3 className="text-xl sm:text-2xl font-headline font-extrabold">
               Active Automations
             </h3>
-            <Link to="/flows" className="text-primary font-bold text-sm">
-              Manage Flows →
+            <Link to="/automations" className="text-primary font-bold text-sm">
+              Manage Automations →
             </Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
@@ -357,9 +270,7 @@ const Dashboard: React.FC = () => {
                   <div className="flex justify-between items-start mb-6">
                     <div className="w-10 h-10 bg-surface-container rounded-lg flex items-center justify-center">
                       <span className="material-symbols-outlined">
-                        {a.automation_type === 'auto_reply_comment'
-                          ? 'question_answer'
-                          : 'send'}
+                        smart_toy
                       </span>
                     </div>
                     {a.is_enabled ? (
@@ -375,12 +286,12 @@ const Dashboard: React.FC = () => {
                     )}
                   </div>
                   <h4 className="font-bold text-on-surface mb-2">
-                    {a.automation_type === 'auto_reply_comment'
-                      ? 'Comment Auto-Reply'
-                      : 'DM Automation'}
+                    Comment Reply + DM
                   </h4>
                   <p className="text-xs text-slate-500 mb-6 line-clamp-2">
-                    {a.template_message || 'No message set'}
+                    {a.template_messages && a.template_messages.length > 0
+                      ? `${a.template_messages.length} reply template${a.template_messages.length > 1 ? 's' : ''}`
+                      : 'No reply templates'}
                   </p>
                   <div className="flex items-center justify-between pt-4 border-t border-surface-container">
                     <span className="text-[10px] font-bold text-slate-400">
@@ -398,7 +309,7 @@ const Dashboard: React.FC = () => {
               <div className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center mb-4 shadow-md group-hover:scale-110 transition-transform">
                 <span className="material-symbols-outlined">add</span>
               </div>
-              <p className="font-bold text-primary">Create Flow</p>
+              <p className="font-bold text-primary">Create Automation</p>
               <p className="text-[10px] font-medium text-primary/60">
                 {analytics?.total_automations ?? automations.length} automation
                 {(analytics?.total_automations ?? automations.length) !== 1

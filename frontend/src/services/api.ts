@@ -10,15 +10,7 @@ import {
   AutomationCreate,
   AutomationUpdate,
   ActionLogList,
-  ConversationFlow,
-  ConversationFlowCreate,
-  ConversationFlowUpdate,
-  ConversationStep,
-  ConversationStepCreate,
-  ConversationStepUpdate,
   DashboardAnalytics,
-  ConversationList,
-  ConversationMessages,
 } from '../types';
 
 // Use relative URL so requests go to the same host that served the page.
@@ -174,53 +166,6 @@ export const automationApi = {
   },
 };
 
-// Conversation Flow API
-export const conversationFlowApi = {
-  getAll: async (): Promise<ConversationFlow[]> => {
-    const response = await api.get<ConversationFlow[]>('/conversation-flows');
-    return response.data;
-  },
-
-  get: async (flowId: number): Promise<ConversationFlow> => {
-    const response = await api.get<ConversationFlow>(`/conversation-flows/${flowId}`);
-    return response.data;
-  },
-
-  getByAutomation: async (automationId: number): Promise<ConversationFlow> => {
-    const response = await api.get<ConversationFlow>(`/conversation-flows/by-automation/${automationId}`);
-    return response.data;
-  },
-
-  create: async (data: ConversationFlowCreate): Promise<ConversationFlow> => {
-    const response = await api.post<ConversationFlow>('/conversation-flows', data);
-    return response.data;
-  },
-
-  update: async (flowId: number, data: ConversationFlowUpdate): Promise<ConversationFlow> => {
-    const response = await api.put<ConversationFlow>(`/conversation-flows/${flowId}`, data);
-    return response.data;
-  },
-
-  delete: async (flowId: number): Promise<void> => {
-    await api.delete(`/conversation-flows/${flowId}`);
-  },
-
-  // Steps
-  addStep: async (flowId: number, data: ConversationStepCreate): Promise<ConversationStep> => {
-    const response = await api.post<ConversationStep>(`/conversation-flows/${flowId}/steps`, data);
-    return response.data;
-  },
-
-  updateStep: async (flowId: number, stepId: number, data: ConversationStepUpdate): Promise<ConversationStep> => {
-    const response = await api.put<ConversationStep>(`/conversation-flows/${flowId}/steps/${stepId}`, data);
-    return response.data;
-  },
-
-  deleteStep: async (flowId: number, stepId: number): Promise<void> => {
-    await api.delete(`/conversation-flows/${flowId}/steps/${stepId}`);
-  },
-};
-
 // Logs API
 export const logsApi = {
   getAll: async (
@@ -248,32 +193,6 @@ export const analyticsApi = {
     const response = await api.get<DashboardAnalytics>('/analytics/dashboard', {
       params: { days },
     });
-    return response.data;
-  },
-};
-
-// Inbox API
-export const inboxApi = {
-  getConversations: async (
-    page: number = 1,
-    pageSize: number = 20,
-    filterType?: string
-  ): Promise<ConversationList> => {
-    const params: Record<string, string | number> = { page, page_size: pageSize };
-    if (filterType) params.filter_type = filterType;
-    const response = await api.get<ConversationList>('/inbox/conversations', { params });
-    return response.data;
-  },
-
-  getMessages: async (
-    recipientId: string,
-    page: number = 1,
-    pageSize: number = 50
-  ): Promise<ConversationMessages> => {
-    const response = await api.get<ConversationMessages>(
-      `/inbox/conversations/${encodeURIComponent(recipientId)}/messages`,
-      { params: { page, page_size: pageSize } }
-    );
     return response.data;
   },
 };

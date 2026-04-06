@@ -1,8 +1,7 @@
 from app.db.database import Base, get_db, init_db
 from app.db.models import (
     User, InstagramAccount, AutomationSettings, ActionLog,
-    AutomationType, ActionType,
-    ConversationFlow, ConversationStep, ConversationState,
+    ActionType,
 )
 
 __all__ = [
@@ -13,9 +12,5 @@ __all__ = [
     "InstagramAccount",
     "AutomationSettings",
     "ActionLog",
-    "AutomationType",
     "ActionType",
-    "ConversationFlow",
-    "ConversationStep",
-    "ConversationState",
 ]

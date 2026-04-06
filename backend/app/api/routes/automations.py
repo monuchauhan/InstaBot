@@ -1,8 +1,8 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db import get_db, User, AutomationType
-from app.core.subscription import enforce_automation_limit, enforce_feature_access
+from app.db import get_db, User
+from app.core.subscription import enforce_automation_limit
 from app.schemas import (
     AutomationSettingsCreate,
     AutomationSettingsUpdate,
@@ -40,9 +40,6 @@ async def create_automation(
     """Create new automation settings."""
     # Check subscription tier limits
     await enforce_automation_limit(db, current_user)
-    
-    # Check if user can use this automation type
-    enforce_feature_access(current_user, automation_in.automation_type.value)
     
     # Verify Instagram account belongs to user if provided
     if automation_in.instagram_account_id:

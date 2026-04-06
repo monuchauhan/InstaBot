@@ -19,19 +19,19 @@ class SubscriptionService:
                 "max_accounts": settings.FREE_TIER_MAX_ACCOUNTS,
                 "max_automations": settings.FREE_TIER_MAX_AUTOMATIONS,
                 "max_actions_per_day": 50,
-                "features": ["auto_reply_comment", "send_dm"],
+                "features": ["automation"],
             },
             SubscriptionTier.PRO: {
                 "max_accounts": settings.PRO_TIER_MAX_ACCOUNTS,
                 "max_automations": settings.PRO_TIER_MAX_AUTOMATIONS,
                 "max_actions_per_day": 500,
-                "features": ["auto_reply_comment", "send_dm", "analytics"],
+                "features": ["automation", "analytics"],
             },
             SubscriptionTier.ENTERPRISE: {
                 "max_accounts": settings.ENTERPRISE_TIER_MAX_ACCOUNTS,
                 "max_automations": settings.ENTERPRISE_TIER_MAX_AUTOMATIONS,
                 "max_actions_per_day": -1,  # Unlimited
-                "features": ["auto_reply_comment", "send_dm", "analytics", "api_access", "priority_support"],
+                "features": ["automation", "analytics", "api_access", "priority_support"],
             },
         }
         return limits.get(tier, limits[SubscriptionTier.FREE])

@@ -1,14 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { automationApi, instagramApi, conversationFlowApi } from '../services/api';
+import { automationApi, instagramApi } from '../services/api';
 import {
   AutomationSettings,
-  AutomationType,
   InstagramAccount,
   InstagramPost,
-  ConversationFlow,
-  ConversationStep,
-  ConversationStepCreate,
-  QuickReplyOption,
 } from '../types';
 import TopBar from '../components/TopBar';
 import { useSidebar } from '../App';
@@ -23,399 +18,6 @@ const extractError = (err: any, fallback: string): string => {
   return fallback;
 };
 
-// ============= Conversation Flow Editor Component =============
-
-interface FlowEditorProps {
-  automationId: number;
-  flow: ConversationFlow | null;
-  onFlowSaved: (flow: ConversationFlow) => void;
-}
-
-interface StepFormData {
-  payload_trigger: string;
-  button_title: string;
-  message_text: string;
-  quick_replies: QuickReplyOption[];
-  is_end_step: boolean;
-}
-
-const FlowEditor: React.FC<FlowEditorProps> = ({ automationId, flow, onFlowSaved }) => {
-  const [flowName, setFlowName] = useState(flow?.name || 'DM Conversation');
-  const [flowDescription, setFlowDescription] = useState(flow?.description || '');
-  const [initialMessage, setInitialMessage] = useState(
-    flow?.initial_message || 'Hi {username}, thanks for your comment! 🎉'
-  );
-  const [steps, setSteps] = useState<ConversationStep[]>(flow?.steps || []);
-  const [showAddStep, setShowAddStep] = useState(false);
-  const [editingStep, setEditingStep] = useState<ConversationStep | null>(null);
-  const [parentStepId, setParentStepId] = useState<number | null>(null);
-  const [stepForm, setStepForm] = useState<StepFormData>({
-    payload_trigger: '',
-    button_title: '',
-    message_text: '',
-    quick_replies: [],
-    is_end_step: false,
-  });
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const resetStepForm = () => {
-    setStepForm({
-      payload_trigger: '',
-      button_title: '',
-      message_text: '',
-      quick_replies: [],
-      is_end_step: false,
-    });
-    setParentStepId(null);
-    setEditingStep(null);
-    setShowAddStep(false);
-  };
-
-  const handleSaveFlow = async () => {
-    setSaving(true);
-    setError('');
-    try {
-      if (flow) {
-        const updated = await conversationFlowApi.update(flow.id, {
-          name: flowName,
-          description: flowDescription || undefined,
-          initial_message: initialMessage,
-        });
-        onFlowSaved(updated);
-      } else {
-        const created = await conversationFlowApi.create({
-          automation_id: automationId,
-          name: flowName,
-          description: flowDescription || undefined,
-          initial_message: initialMessage,
-        });
-        onFlowSaved(created);
-      }
-    } catch (err: any) {
-      setError(extractError(err, 'Failed to save flow'));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleAddStep = async () => {
-    if (!flow) {
-      setError('Save the flow first before adding steps');
-      return;
-    }
-    setError('');
-    try {
-      const stepData: ConversationStepCreate = {
-        parent_step_id: parentStepId,
-        step_order: steps.filter((s) => s.parent_step_id === parentStepId).length,
-        payload_trigger: stepForm.payload_trigger || undefined,
-        button_title: stepForm.button_title || undefined,
-        message_text: stepForm.message_text,
-        quick_replies: stepForm.quick_replies.length > 0 ? stepForm.quick_replies : undefined,
-        is_end_step: stepForm.is_end_step,
-      };
-      const newStep = await conversationFlowApi.addStep(flow.id, stepData);
-      setSteps([...steps, newStep]);
-      resetStepForm();
-    } catch (err: any) {
-      setError(extractError(err, 'Failed to add step'));
-    }
-  };
-
-  const handleUpdateStep = async () => {
-    if (!flow || !editingStep) return;
-    setError('');
-    try {
-      const updated = await conversationFlowApi.updateStep(flow.id, editingStep.id, {
-        payload_trigger: stepForm.payload_trigger || undefined,
-        button_title: stepForm.button_title || undefined,
-        message_text: stepForm.message_text,
-        quick_replies: stepForm.quick_replies.length > 0 ? stepForm.quick_replies : undefined,
-        is_end_step: stepForm.is_end_step,
-      });
-      setSteps(steps.map((s) => (s.id === updated.id ? updated : s)));
-      resetStepForm();
-    } catch (err: any) {
-      setError(extractError(err, 'Failed to update step'));
-    }
-  };
-
-  const handleDeleteStep = async (stepId: number) => {
-    if (!flow || !window.confirm('Delete this step and all its children?')) return;
-    try {
-      await conversationFlowApi.deleteStep(flow.id, stepId);
-      setSteps(steps.filter((s) => s.id !== stepId && s.parent_step_id !== stepId));
-    } catch (err: any) {
-      setError(extractError(err, 'Failed to delete step'));
-    }
-  };
-
-  const openAddStep = (parentId: number | null) => {
-    resetStepForm();
-    setParentStepId(parentId);
-    setShowAddStep(true);
-  };
-
-  const openEditStep = (step: ConversationStep) => {
-    setEditingStep(step);
-    setStepForm({
-      payload_trigger: step.payload_trigger || '',
-      button_title: step.button_title || '',
-      message_text: step.message_text,
-      quick_replies: step.quick_replies || [],
-      is_end_step: step.is_end_step,
-    });
-    setShowAddStep(true);
-  };
-
-  const addQuickReply = () => {
-    if (stepForm.quick_replies.length >= 3) return; // Instagram limits to 3
-    setStepForm({
-      ...stepForm,
-      quick_replies: [...stepForm.quick_replies, { title: '', payload: '' }],
-    });
-  };
-
-  const updateQuickReply = (index: number, field: 'title' | 'payload', value: string) => {
-    const updated = [...stepForm.quick_replies];
-    updated[index] = { ...updated[index], [field]: value };
-    setStepForm({ ...stepForm, quick_replies: updated });
-  };
-
-  const removeQuickReply = (index: number) => {
-    setStepForm({
-      ...stepForm,
-      quick_replies: stepForm.quick_replies.filter((_, i) => i !== index),
-    });
-  };
-
-  // Build tree structure for display
-  const rootSteps = steps.filter((s) => s.parent_step_id === null);
-
-  const getChildSteps = (parentId: number): ConversationStep[] => {
-    return steps
-      .filter((s) => s.parent_step_id === parentId)
-      .sort((a, b) => a.step_order - b.step_order);
-  };
-
-  const renderStep = (step: ConversationStep, depth: number = 0) => (
-    <div key={step.id} className="border-l-2 border-outline-variant/30 pl-4 py-2" style={{ marginLeft: depth * 16 }}>
-      <div className="flex items-center gap-3 mb-1">
-        <span className="text-xs font-bold text-primary">
-          {step.button_title
-            ? `▸ "${step.button_title}"`
-            : step.payload_trigger
-              ? `▸ "${step.payload_trigger.replace('_', ' ')}"`
-              : '▸ Root Step'}
-        </span>
-        {step.is_end_step && <span className="text-[9px] font-bold text-white bg-slate-500 px-1.5 py-0.5 rounded-full">End</span>}
-        <div className="flex items-center gap-1 ml-auto">
-          <button className="w-6 h-6 text-xs hover:bg-surface-container rounded" onClick={() => openEditStep(step)}>✏️</button>
-          <button className="w-6 h-6 text-xs hover:bg-surface-container rounded" onClick={() => openAddStep(step.id)} title="Add child step">➕</button>
-          <button className="w-6 h-6 text-xs hover:bg-error-container/40 rounded" onClick={() => handleDeleteStep(step.id)}>🗑️</button>
-        </div>
-      </div>
-      <p className="text-sm text-on-surface-variant mb-1">{step.message_text}</p>
-      {step.quick_replies && step.quick_replies.length > 0 && (
-        <div className="flex gap-1 mt-1">
-          {step.quick_replies.map((qr, i) => (
-            <span key={i} className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full">{qr.title}</span>
-          ))}
-        </div>
-      )}
-      {getChildSteps(step.id).map((child) => renderStep(child, depth + 1))}
-    </div>
-  );
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-headline font-bold mb-1">💬 Conversation Flow</h3>
-        <p className="text-xs text-on-surface-variant">
-          Use <code className="bg-surface-container-high px-1.5 py-0.5 rounded text-[11px] font-mono">{'{username}'}</code> in messages to personalize.
-        </p>
-      </div>
-
-      {error && <div className="bg-error-container text-on-error-container px-4 py-3 rounded-lg text-sm font-medium">{error}</div>}
-
-      <div className="space-y-4">
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold uppercase tracking-wider text-outline">Flow Name</label>
-          <input
-            type="text"
-            value={flowName}
-            onChange={(e) => setFlowName(e.target.value)}
-            placeholder="e.g., Welcome Flow"
-            className="bg-surface-container-highest border-none rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-sm"
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold uppercase tracking-wider text-outline">Description (optional)</label>
-          <input
-            type="text"
-            value={flowDescription}
-            onChange={(e) => setFlowDescription(e.target.value)}
-            placeholder="Brief description..."
-            className="bg-surface-container-highest border-none rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-sm"
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold uppercase tracking-wider text-outline">Initial DM Message</label>
-          <textarea
-            value={initialMessage}
-            onChange={(e) => setInitialMessage(e.target.value)}
-            placeholder="Hi {username}, thanks for your comment!"
-            rows={3}
-            className="bg-surface-container-highest border-none rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-sm resize-y"
-          />
-        </div>
-
-        <button
-          className="px-6 py-2.5 text-sm font-bold bg-gradient-to-br from-primary to-primary-container text-white rounded-xl shadow-md hover:opacity-90 transition-all disabled:opacity-40"
-          onClick={handleSaveFlow}
-          disabled={saving}
-        >
-          {saving ? 'Saving...' : flow ? 'Update Flow' : 'Create Flow'}
-        </button>
-      </div>
-
-      {flow && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h4 className="font-bold text-on-surface">Conversation Steps</h4>
-            <button
-              className="text-xs font-bold text-primary hover:bg-primary/5 px-3 py-1.5 rounded-lg transition-colors"
-              onClick={() => openAddStep(null)}
-            >
-              + Add Root Step
-            </button>
-          </div>
-
-          <div className="bg-surface-container-low rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-outline-variant/20">
-              <span className="text-xs font-bold text-primary">📩 Initial:</span>
-              <span className="text-xs text-on-surface-variant">{initialMessage}</span>
-            </div>
-            {rootSteps.length === 0 ? (
-              <p className="text-xs text-on-surface-variant text-center py-4">
-                No steps yet. Add root steps to create reply options.
-              </p>
-            ) : (
-              <div>
-                {rootSteps.sort((a, b) => a.step_order - b.step_order).map((s) => renderStep(s))}
-              </div>
-            )}
-          </div>
-
-          {/* Add/Edit Step Form */}
-          {showAddStep && (
-            <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-6 space-y-4">
-              <h4 className="font-bold text-on-surface">{editingStep ? 'Edit Step' : 'Add Step'}</h4>
-              {parentStepId && !editingStep && (
-                <p className="text-xs text-on-surface-variant">Parent: Step #{parentStepId}</p>
-              )}
-
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-outline">Trigger Payload</label>
-                <input
-                  type="text"
-                  value={stepForm.payload_trigger}
-                  onChange={(e) =>
-                    setStepForm({ ...stepForm, payload_trigger: e.target.value.toUpperCase().replace(/\s+/g, '_') })
-                  }
-                  placeholder="e.g., GET_LINK (auto-uppercase)"
-                  className="bg-surface-container-highest border-none rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-sm"
-                />
-                <p className="text-[10px] text-outline italic">Internal identifier for matching. Auto-uppercased.</p>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-outline">Button Label</label>
-                <input
-                  type="text"
-                  value={stepForm.button_title}
-                  onChange={(e) =>
-                    setStepForm({ ...stepForm, button_title: e.target.value.slice(0, 20) })
-                  }
-                  placeholder="e.g., Get the Link (max 20 chars)"
-                  maxLength={20}
-                  className="bg-surface-container-highest border-none rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-sm"
-                />
-                <p className="text-[10px] text-outline italic">The text shown on the quick reply button the user taps (max 20 chars).</p>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-outline">Response Message</label>
-                <textarea
-                  value={stepForm.message_text}
-                  onChange={(e) => setStepForm({ ...stepForm, message_text: e.target.value })}
-                  placeholder="The message to send when triggered..."
-                  rows={3}
-                  className="bg-surface-container-highest border-none rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-sm resize-y"
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-outline">Quick Reply Buttons (max 3)</label>
-                {stepForm.quick_replies.map((qr, i) => (
-                  <div key={i} className="flex gap-2">
-                    <input
-                      type="text"
-                      value={qr.title}
-                      onChange={(e) => updateQuickReply(i, 'title', e.target.value)}
-                      placeholder="Button label (max 20 chars)"
-                      maxLength={20}
-                      className="flex-1 bg-surface-container-highest border-none rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary/40 outline-none text-sm"
-                    />
-                    <input
-                      type="text"
-                      value={qr.payload}
-                      onChange={(e) => updateQuickReply(i, 'payload', e.target.value.toUpperCase().replace(/\s+/g, '_'))}
-                      placeholder="Payload"
-                      className="flex-1 bg-surface-container-highest border-none rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary/40 outline-none text-sm"
-                    />
-                    <button className="text-error text-sm hover:bg-error-container/30 px-2 rounded" onClick={() => removeQuickReply(i)}>✕</button>
-                  </div>
-                ))}
-                {stepForm.quick_replies.length < 3 && (
-                  <button className="text-xs font-bold text-primary hover:underline self-start" onClick={addQuickReply}>
-                    + Add Button
-                  </button>
-                )}
-              </div>
-
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={stepForm.is_end_step}
-                  onChange={(e) => setStepForm({ ...stepForm, is_end_step: e.target.checked })}
-                  className="w-4 h-4 text-primary rounded focus:ring-primary/40"
-                />
-                <span className="text-sm font-medium text-on-surface">End step (conversation ends here)</span>
-              </label>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button className="px-5 py-2 text-sm font-bold text-on-surface-variant hover:bg-surface-container rounded-xl transition-colors" onClick={resetStepForm}>
-                  Cancel
-                </button>
-                <button
-                  className="px-5 py-2 text-sm font-bold bg-primary text-white rounded-xl hover:opacity-90 transition-all"
-                  onClick={editingStep ? handleUpdateStep : handleAddStep}
-                >
-                  {editingStep ? 'Update Step' : 'Add Step'}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
 // ============= Main Automations Component =============
 
 const Automations: React.FC = () => {
@@ -427,11 +29,6 @@ const Automations: React.FC = () => {
   const [editingAutomation, setEditingAutomation] = useState<AutomationSettings | null>(null);
   const [error, setError] = useState('');
 
-  // Conversation flow state
-  const [showFlowEditor, setShowFlowEditor] = useState(false);
-  const [flowEditorAutomationId, setFlowEditorAutomationId] = useState<number | null>(null);
-  const [flows, setFlows] = useState<Record<number, ConversationFlow>>({});  // keyed by automation_id
-
   // Post selection state
   const [posts, setPosts] = useState<InstagramPost[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
@@ -441,10 +38,12 @@ const Automations: React.FC = () => {
   const [createStep, setCreateStep] = useState<'select-post' | 'configure'>('select-post');
 
   // Form state
-  const [formType, setFormType] = useState<AutomationType>('auto_reply_comment');
   const [formAccountId, setFormAccountId] = useState<number | undefined>();
-  const [formTemplate, setFormTemplate] = useState('');
-  const [formKeywords, setFormKeywords] = useState('');
+  const [formTemplates, setFormTemplates] = useState<string[]>(['']);
+  const [formDmGreeting, setFormDmGreeting] = useState('');
+  const [formDmLinks, setFormDmLinks] = useState<string[]>([]);
+  const [formKeywords, setFormKeywords] = useState<string[]>([]);
+  const [formKeywordInput, setFormKeywordInput] = useState('');
   const [formEnabled, setFormEnabled] = useState(false);
 
   useEffect(() => {
@@ -453,10 +52,9 @@ const Automations: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const [automationsResult, accountsResult, flowsResult] = await Promise.allSettled([
+      const [automationsResult, accountsResult] = await Promise.allSettled([
         automationApi.getAll(),
         instagramApi.getAccounts(),
-        conversationFlowApi.getAll(),
       ]);
 
       if (accountsResult.status === 'fulfilled') {
@@ -469,14 +67,6 @@ const Automations: React.FC = () => {
         setAutomations(automationsResult.value);
       } else {
         console.error('Failed to fetch automations:', automationsResult.reason);
-      }
-
-      if (flowsResult.status === 'fulfilled') {
-        const flowMap: Record<number, ConversationFlow> = {};
-        flowsResult.value.forEach((f) => { flowMap[f.automation_id] = f; });
-        setFlows(flowMap);
-      } else {
-        console.error('Failed to fetch flows:', flowsResult.reason);
       }
     } catch (err) {
       console.error('Failed to fetch data:', err);
@@ -499,20 +89,13 @@ const Automations: React.FC = () => {
     }
   };
 
-  const openFlowEditor = (automationId: number) => {
-    setFlowEditorAutomationId(automationId);
-    setShowFlowEditor(true);
-  };
-
-  const handleFlowSaved = (flow: ConversationFlow) => {
-    setFlows({ ...flows, [flow.automation_id]: flow });
-  };
-
   const resetForm = () => {
-    setFormType('auto_reply_comment');
     setFormAccountId(accounts[0]?.id);
-    setFormTemplate('');
-    setFormKeywords('');
+    setFormTemplates(['']);
+    setFormDmGreeting('');
+    setFormDmLinks([]);
+    setFormKeywords([]);
+    setFormKeywordInput('');
     setFormEnabled(false);
     setEditingAutomation(null);
     setSelectedPost(null);
@@ -534,10 +117,16 @@ const Automations: React.FC = () => {
 
   const openEditModal = async (automation: AutomationSettings) => {
     setEditingAutomation(automation);
-    setFormType(automation.automation_type);
     setFormAccountId(automation.instagram_account_id || undefined);
-    setFormTemplate(automation.template_message || '');
-    setFormKeywords(automation.trigger_keywords?.join(', ') || '');
+    setFormTemplates(
+      automation.template_messages && automation.template_messages.length > 0
+        ? [...automation.template_messages]
+        : ['']
+    );
+    setFormDmGreeting(automation.dm_greeting || '');
+    setFormDmLinks(automation.dm_links ? [...automation.dm_links] : []);
+    setFormKeywords(automation.trigger_keywords ? [...automation.trigger_keywords] : []);
+    setFormKeywordInput('');
     setFormEnabled(automation.is_enabled);
     setSelectedPost(null);
     setEditingPost(null);
@@ -581,28 +170,29 @@ const Automations: React.FC = () => {
     e.preventDefault();
     setError('');
 
-    const keywords = formKeywords
-      .split(',')
-      .map((k) => k.trim())
-      .filter((k) => k.length > 0);
+    const templates = formTemplates.filter((t) => t.trim().length > 0);
+    const links = formDmLinks.filter((l) => l.trim().length > 0);
 
     try {
       if (editingAutomation) {
         const updated = await automationApi.update(editingAutomation.id, {
           is_enabled: formEnabled,
-          template_message: formTemplate,
-          trigger_keywords: keywords.length > 0 ? keywords : undefined,
+          template_messages: templates.length > 0 ? templates : undefined,
+          dm_greeting: formDmGreeting || undefined,
+          dm_links: links.length > 0 ? links : undefined,
+          trigger_keywords: formKeywords.length > 0 ? formKeywords : undefined,
         });
         setAutomations(
           automations.map((a) => (a.id === updated.id ? updated : a))
         );
       } else {
         const created = await automationApi.create({
-          automation_type: formType,
           instagram_account_id: formAccountId,
           is_enabled: formEnabled,
-          template_message: formTemplate,
-          trigger_keywords: keywords.length > 0 ? keywords : undefined,
+          template_messages: templates.length > 0 ? templates : undefined,
+          dm_greeting: formDmGreeting || undefined,
+          dm_links: links.length > 0 ? links : undefined,
+          trigger_keywords: formKeywords.length > 0 ? formKeywords : undefined,
           target_post_id: selectedPost?.id,
         });
         setAutomations([...automations, created]);
@@ -635,28 +225,6 @@ const Automations: React.FC = () => {
       setAutomations(automations.filter((a) => a.id !== automationId));
     } catch (err: any) {
       setError(extractError(err, 'Failed to delete automation'));
-    }
-  };
-
-  const getAutomationLabel = (type: AutomationType) => {
-    switch (type) {
-      case 'auto_reply_comment':
-        return 'Auto-Reply to Comments';
-      case 'send_dm':
-        return 'Send DM';
-      default:
-        return type;
-    }
-  };
-
-  const getAutomationIcon = (type: AutomationType) => {
-    switch (type) {
-      case 'auto_reply_comment':
-        return '💬';
-      case 'send_dm':
-        return '✉️';
-      default:
-        return '🤖';
     }
   };
 
@@ -726,10 +294,10 @@ const Automations: React.FC = () => {
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-lg">
-                        {getAutomationIcon(automation.automation_type)}
+                        🤖
                       </div>
                       <div>
-                        <h3 className="font-bold text-on-surface text-sm">{getAutomationLabel(automation.automation_type)}</h3>
+                        <h3 className="font-bold text-on-surface text-sm">Comment Reply + DM</h3>
                         <p className="text-xs text-slate-500">{getAccountUsername(automation.instagram_account_id)}</p>
                       </div>
                     </div>
@@ -762,25 +330,21 @@ const Automations: React.FC = () => {
                       </div>
                     )}
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Template</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Comment Replies</p>
                       <p className="text-xs text-on-surface-variant line-clamp-2">
-                        {automation.template_message || 'No template set'}
+                        {automation.template_messages && automation.template_messages.length > 0
+                          ? `${automation.template_messages.length} template${automation.template_messages.length > 1 ? 's' : ''}`
+                          : 'Not set'}
                       </p>
                     </div>
-                    {automation.automation_type === 'send_dm' && (
-                      <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Flow</p>
-                        {flows[automation.id] ? (
-                          <p className="text-xs text-green-600 font-medium">
-                            ✅ {flows[automation.id].name} ({flows[automation.id].steps.length} steps)
-                          </p>
-                        ) : (
-                          <p className="text-xs text-tertiary font-medium">
-                            ⚠️ No flow — simple DM only
-                          </p>
-                        )}
-                      </div>
-                    )}
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">DM</p>
+                      <p className="text-xs text-on-surface-variant line-clamp-2">
+                        {automation.dm_greeting
+                          ? `Greeting${automation.dm_links && automation.dm_links.length > 0 ? ` + ${automation.dm_links.length} link${automation.dm_links.length > 1 ? 's' : ''}` : ''}`
+                          : 'Not set'}
+                      </p>
+                    </div>
                     {automation.trigger_keywords && automation.trigger_keywords.length > 0 && (
                       <div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Keywords</p>
@@ -800,14 +364,6 @@ const Automations: React.FC = () => {
                 </div>
 
                 <div className="flex items-center border-t border-outline-variant/10 divide-x divide-outline-variant/10">
-                  {automation.automation_type === 'send_dm' && (
-                    <button
-                      className="flex-1 py-3 text-xs font-bold text-primary hover:bg-primary/5 transition-colors"
-                      onClick={() => openFlowEditor(automation.id)}
-                    >
-                      {flows[automation.id] ? '⚙️ Edit Flow' : '🔗 Add Flow'}
-                    </button>
-                  )}
                   <button
                     className="flex-1 py-3 text-xs font-bold text-on-surface-variant hover:bg-surface-container-low transition-colors"
                     onClick={() => openEditModal(automation)}
@@ -829,7 +385,7 @@ const Automations: React.FC = () => {
 
       {showModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" onClick={() => { setShowModal(false); resetForm(); }}>
-          <div className={`bg-surface-container-lowest rounded-2xl shadow-2xl w-full ${!editingAutomation && createStep === 'select-post' ? 'max-w-4xl' : 'max-w-lg'} max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
+          <div className={`bg-surface-container-lowest rounded-2xl shadow-2xl w-full ${!editingAutomation && createStep === 'select-post' ? 'max-w-4xl' : 'max-w-5xl'} max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between p-6 border-b border-outline-variant/10 sticky top-0 bg-surface-container-lowest z-10">
               <h2 className="text-xl font-headline font-extrabold">
                 {editingAutomation
@@ -1022,54 +578,226 @@ const Automations: React.FC = () => {
                   </div>
                 )}
 
-                {!editingAutomation && (
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-outline">Automation Type</label>
-                    <select
-                      value={formType}
-                      onChange={(e) => setFormType(e.target.value as AutomationType)}
-                      className="bg-surface-container-highest border-none rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-sm"
-                    >
-                      <option value="auto_reply_comment">Auto-Reply to Comments</option>
-                      <option value="send_dm">Send DM</option>
-                    </select>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Left column: Form fields */}
+                  <div className="space-y-6">
+                    {/* Trigger Keywords (Bubbles) */}
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-bold uppercase tracking-wider text-outline">Trigger Keywords</label>
+                      <div className="flex flex-wrap gap-2 mb-1">
+                        {formKeywords.map((kw, i) => (
+                          <span key={i} className="inline-flex items-center gap-1 bg-primary/10 text-primary text-sm font-bold px-3 py-1 rounded-full">
+                            {kw}
+                            <button type="button" onClick={() => setFormKeywords(formKeywords.filter((_, j) => j !== i))} className="hover:text-error ml-0.5">
+                              <span className="material-symbols-outlined text-sm">close</span>
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                      <input
+                        type="text"
+                        value={formKeywordInput}
+                        onChange={(e) => setFormKeywordInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if ((e.key === 'Enter' || e.key === ',') && formKeywordInput.trim()) {
+                            e.preventDefault();
+                            const kw = formKeywordInput.trim().replace(/,$/,'');
+                            if (kw && !formKeywords.includes(kw)) {
+                              setFormKeywords([...formKeywords, kw]);
+                            }
+                            setFormKeywordInput('');
+                          }
+                        }}
+                        placeholder="Type a keyword and press Enter"
+                        className="bg-surface-container-highest border-none rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-sm"
+                      />
+                      <p className="text-[10px] text-outline italic">
+                        Leave empty to trigger on all comments
+                      </p>
+                    </div>
+
+                    {/* Comment Reply Templates (Multiple) */}
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-bold uppercase tracking-wider text-outline">Comment Reply Templates</label>
+                      <p className="text-[10px] text-outline italic mb-1">
+                        One of these will be chosen randomly when replying to a comment
+                      </p>
+                      <div className="space-y-3">
+                        {formTemplates.map((tpl, i) => (
+                          <div key={i} className="flex gap-2">
+                            <textarea
+                              value={tpl}
+                              onChange={(e) => {
+                                const updated = [...formTemplates];
+                                updated[i] = e.target.value;
+                                setFormTemplates(updated);
+                              }}
+                              placeholder={`Reply template ${i + 1}...`}
+                              rows={2}
+                              className="flex-1 bg-surface-container-highest border-none rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-sm resize-y"
+                            />
+                            {formTemplates.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setFormTemplates(formTemplates.filter((_, j) => j !== i))}
+                                className="self-start mt-2 text-on-surface-variant hover:text-error"
+                              >
+                                <span className="material-symbols-outlined text-lg">delete</span>
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFormTemplates([...formTemplates, ''])}
+                        className="text-xs font-bold text-primary hover:underline self-start mt-1 flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-sm">add</span>
+                        Add Template
+                      </button>
+                    </div>
+
+                    {/* DM Greeting */}
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-bold uppercase tracking-wider text-outline">DM Greeting Message</label>
+                      <textarea
+                        value={formDmGreeting}
+                        onChange={(e) => setFormDmGreeting(e.target.value)}
+                        placeholder="Hi {username}, thanks for your comment! Here are some links for you 👇"
+                        rows={3}
+                        className="bg-surface-container-highest border-none rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-sm resize-y"
+                      />
+                      <p className="text-[10px] text-outline italic">
+                        Sent as the first DM. Use {'{username}'} to personalize. Leave empty to skip DMs.
+                      </p>
+                    </div>
+
+                    {/* DM Links */}
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-bold uppercase tracking-wider text-outline">DM Links</label>
+                      <p className="text-[10px] text-outline italic mb-1">
+                        Sent as a follow-up message after the greeting
+                      </p>
+                      <div className="space-y-2">
+                        {formDmLinks.map((link, i) => (
+                          <div key={i} className="flex gap-2">
+                            <input
+                              type="url"
+                              value={link}
+                              onChange={(e) => {
+                                const updated = [...formDmLinks];
+                                updated[i] = e.target.value;
+                                setFormDmLinks(updated);
+                              }}
+                              placeholder="https://example.com"
+                              className="flex-1 bg-surface-container-highest border-none rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-sm"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setFormDmLinks(formDmLinks.filter((_, j) => j !== i))}
+                              className="text-on-surface-variant hover:text-error"
+                            >
+                              <span className="material-symbols-outlined text-lg">delete</span>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFormDmLinks([...formDmLinks, ''])}
+                        className="text-xs font-bold text-primary hover:underline self-start mt-1 flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-sm">add</span>
+                        Add Link
+                      </button>
+                    </div>
+
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formEnabled}
+                        onChange={(e) => setFormEnabled(e.target.checked)}
+                        className="w-4 h-4 text-primary rounded focus:ring-primary/40"
+                      />
+                      <span className="text-sm font-medium text-on-surface">Enable automation</span>
+                    </label>
                   </div>
-                )}
 
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-outline">Template Message</label>
-                  <textarea
-                    value={formTemplate}
-                    onChange={(e) => setFormTemplate(e.target.value)}
-                    placeholder="Enter the message template..."
-                    rows={4}
-                    className="bg-surface-container-highest border-none rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-sm resize-y"
-                  />
+                  {/* Right column: DM Preview */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-outline">DM Preview</label>
+                    <div className="bg-surface-container-highest rounded-2xl overflow-hidden border border-outline-variant/20 shadow-sm">
+                      {/* Instagram DM header */}
+                      <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-outline-variant/10">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center text-white text-xs font-bold">IG</div>
+                        <div>
+                          <p className="text-sm font-bold text-on-surface">your_business</p>
+                          <p className="text-[10px] text-slate-400">Instagram</p>
+                        </div>
+                      </div>
+                      {/* Chat area */}
+                      <div className="p-4 space-y-3 min-h-[240px] bg-white">
+                        {/* Example incoming message */}
+                        <div className="flex justify-start">
+                          <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-2.5 max-w-[80%]">
+                            <p className="text-sm text-gray-800">Hey! I commented on your post 💬</p>
+                          </div>
+                        </div>
+
+                        {/* Greeting bubble */}
+                        {formDmGreeting ? (
+                          <div className="flex justify-end">
+                            <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl rounded-br-md px-4 py-2.5 max-w-[80%]">
+                              <p className="text-sm text-white whitespace-pre-wrap">
+                                {formDmGreeting.replace(/\{username\}/g, 'johndoe')}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex justify-end">
+                            <div className="border-2 border-dashed border-outline-variant/30 rounded-2xl rounded-br-md px-4 py-2.5 max-w-[80%]">
+                              <p className="text-sm text-slate-300 italic">Greeting message...</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Links bubble */}
+                        {formDmLinks.filter(l => l.trim()).length > 0 && (
+                          <div className="flex justify-end">
+                            <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl rounded-br-md px-4 py-2.5 max-w-[80%]">
+                              <div className="space-y-1">
+                                {formDmLinks.filter(l => l.trim()).map((link, i) => (
+                                  <p key={i} className="text-sm text-blue-100 underline break-all">
+                                    {link}
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Empty state for links */}
+                        {formDmLinks.filter(l => l.trim()).length === 0 && formDmGreeting && (
+                          <div className="flex justify-end">
+                            <div className="border-2 border-dashed border-outline-variant/30 rounded-2xl rounded-br-md px-4 py-2.5 max-w-[80%]">
+                              <p className="text-sm text-slate-300 italic">Links will appear here...</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {/* Input bar fake */}
+                      <div className="flex items-center gap-2 px-4 py-2.5 border-t border-outline-variant/10 bg-white">
+                        <div className="flex-1 bg-gray-100 rounded-full px-4 py-2">
+                          <p className="text-xs text-slate-300">Message...</p>
+                        </div>
+                        <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center">
+                          <span className="material-symbols-outlined text-white text-sm">send</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-outline">Trigger Keywords (comma-separated)</label>
-                  <input
-                    type="text"
-                    value={formKeywords}
-                    onChange={(e) => setFormKeywords(e.target.value)}
-                    placeholder="e.g., price, info, help"
-                    className="bg-surface-container-highest border-none rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary/40 transition-all outline-none text-sm"
-                  />
-                  <p className="text-[10px] text-outline italic">
-                    Leave empty to trigger on all comments
-                  </p>
-                </div>
-
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formEnabled}
-                    onChange={(e) => setFormEnabled(e.target.checked)}
-                    className="w-4 h-4 text-primary rounded focus:ring-primary/40"
-                  />
-                  <span className="text-sm font-medium text-on-surface">Enable automation</span>
-                </label>
 
                 {error && <div className="bg-error-container text-on-error-container px-4 py-3 rounded-lg text-sm font-medium">{error}</div>}
 
@@ -1096,27 +824,6 @@ const Automations: React.FC = () => {
                 </div>
               </form>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Conversation Flow Editor Modal */}
-      {showFlowEditor && flowEditorAutomationId && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4" onClick={() => setShowFlowEditor(false)}>
-          <div className="bg-surface-container-lowest rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-6 border-b border-outline-variant/10 sticky top-0 bg-surface-container-lowest z-10">
-              <h2 className="text-xl font-headline font-extrabold">Conversation Flow</h2>
-              <button className="w-8 h-8 rounded-lg hover:bg-surface-container flex items-center justify-center text-on-surface-variant" onClick={() => setShowFlowEditor(false)}>
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-            <div className="p-6">
-              <FlowEditor
-                automationId={flowEditorAutomationId}
-                flow={flows[flowEditorAutomationId] || null}
-                onFlowSaved={handleFlowSaved}
-              />
-            </div>
           </div>
         </div>
       )}

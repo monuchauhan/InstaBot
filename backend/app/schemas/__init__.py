@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional, List
 import json
 from pydantic import BaseModel, EmailStr, Field, field_validator
-from app.db.models import AutomationType, ActionType, SubscriptionTier
+from app.db.models import ActionType, SubscriptionTier
 
 
 # ============= User Schemas =============
@@ -85,9 +85,10 @@ class InstagramOAuthCallback(BaseModel):
 # ============= Automation Settings Schemas =============
 
 class AutomationSettingsBase(BaseModel):
-    automation_type: AutomationType
     is_enabled: bool = False
-    template_message: Optional[str] = None
+    template_messages: Optional[List[str]] = None
+    dm_greeting: Optional[str] = None
+    dm_links: Optional[List[str]] = None
     trigger_keywords: Optional[List[str]] = None
 
 
@@ -98,7 +99,9 @@ class AutomationSettingsCreate(AutomationSettingsBase):
 
 class AutomationSettingsUpdate(BaseModel):
     is_enabled: Optional[bool] = None
-    template_message: Optional[str] = None
+    template_messages: Optional[List[str]] = None
+    dm_greeting: Optional[str] = None
+    dm_links: Optional[List[str]] = None
     trigger_keywords: Optional[List[str]] = None
     target_post_id: Optional[str] = None
 
@@ -111,90 +114,13 @@ class AutomationSettingsResponse(AutomationSettingsBase):
     created_at: datetime
     updated_at: datetime
     
-    @field_validator("trigger_keywords", mode="before")
+    @field_validator("template_messages", "dm_links", "trigger_keywords", mode="before")
     @classmethod
-    def parse_trigger_keywords(cls, v):
-        """Parse trigger_keywords from JSON string (DB storage) to list."""
+    def parse_json_list_fields(cls, v):
+        """Parse JSON-encoded list fields from DB storage to Python lists."""
         if isinstance(v, str):
             return json.loads(v)
         return v
-    
-    class Config:
-        from_attributes = True
-
-
-# ============= Conversation Flow Schemas =============
-
-class QuickReplyOption(BaseModel):
-    """A single quick-reply button."""
-    title: str = Field(..., max_length=20)  # Instagram limits to 20 chars
-    payload: str = Field(..., max_length=100)  # Internal identifier
-
-
-class ConversationStepCreate(BaseModel):
-    """Create a conversation step."""
-    parent_step_id: Optional[int] = None
-    step_order: int = 0
-    payload_trigger: Optional[str] = None  # Which quick_reply payload triggers this step
-    button_title: Optional[str] = Field(None, max_length=20)  # User-visible quick reply button label (max 20 chars)
-    message_text: str
-    quick_replies: Optional[List[QuickReplyOption]] = None
-    is_end_step: bool = False
-
-
-class ConversationStepUpdate(BaseModel):
-    """Update a conversation step."""
-    step_order: Optional[int] = None
-    payload_trigger: Optional[str] = None
-    button_title: Optional[str] = Field(None, max_length=20)
-    message_text: Optional[str] = None
-    quick_replies: Optional[List[QuickReplyOption]] = None
-    is_end_step: Optional[bool] = None
-
-
-class ConversationStepResponse(BaseModel):
-    id: int
-    flow_id: int
-    parent_step_id: Optional[int] = None
-    step_order: int
-    payload_trigger: Optional[str] = None
-    button_title: Optional[str] = None
-    message_text: str
-    quick_replies: Optional[List[QuickReplyOption]] = None
-    is_end_step: bool
-    child_steps: Optional[List["ConversationStepResponse"]] = None
-    created_at: datetime
-    updated_at: datetime
-    
-    class Config:
-        from_attributes = True
-
-
-class ConversationFlowCreate(BaseModel):
-    """Create a conversation flow for a SEND_DM automation."""
-    automation_id: int
-    name: str = Field(..., max_length=255)
-    description: Optional[str] = None
-    initial_message: str  # Supports {username} placeholder
-    steps: Optional[List[ConversationStepCreate]] = None  # Optional: create steps inline
-
-
-class ConversationFlowUpdate(BaseModel):
-    """Update a conversation flow."""
-    name: Optional[str] = Field(None, max_length=255)
-    description: Optional[str] = None
-    initial_message: Optional[str] = None
-
-
-class ConversationFlowResponse(BaseModel):
-    id: int
-    automation_id: int
-    name: str
-    description: Optional[str] = None
-    initial_message: str
-    steps: List[ConversationStepResponse] = []
-    created_at: datetime
-    updated_at: datetime
     
     class Config:
         from_attributes = True
@@ -282,4 +208,3 @@ class WebhookPayload(BaseModel):
 
 # Update forward references
 UserWithAccounts.model_rebuild()
-ConversationStepResponse.model_rebuild()

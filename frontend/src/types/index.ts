@@ -67,15 +67,14 @@ export interface InstagramPost {
 }
 
 // Automation types
-export type AutomationType = 'auto_reply_comment' | 'send_dm';
-
 export interface AutomationSettings {
   id: number;
   user_id: number;
   instagram_account_id: number | null;
-  automation_type: AutomationType;
   is_enabled: boolean;
-  template_message: string | null;
+  template_messages: string[] | null;
+  dm_greeting: string | null;
+  dm_links: string[] | null;
   trigger_keywords: string[] | null;
   target_post_id: string | null;
   created_at: string;
@@ -83,84 +82,22 @@ export interface AutomationSettings {
 }
 
 export interface AutomationCreate {
-  automation_type: AutomationType;
   instagram_account_id?: number;
   is_enabled?: boolean;
-  template_message?: string;
+  template_messages?: string[];
+  dm_greeting?: string;
+  dm_links?: string[];
   trigger_keywords?: string[];
   target_post_id?: string;
 }
 
 export interface AutomationUpdate {
   is_enabled?: boolean;
-  template_message?: string;
+  template_messages?: string[];
+  dm_greeting?: string;
+  dm_links?: string[];
   trigger_keywords?: string[];
   target_post_id?: string;
-}
-
-// Conversation Flow types
-export interface QuickReplyOption {
-  title: string;
-  payload: string;
-}
-
-export interface ConversationStep {
-  id: number;
-  flow_id: number;
-  parent_step_id: number | null;
-  step_order: number;
-  payload_trigger: string | null;
-  button_title: string | null;
-  message_text: string;
-  quick_replies: QuickReplyOption[] | null;
-  is_end_step: boolean;
-  child_steps?: ConversationStep[];
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ConversationStepCreate {
-  parent_step_id?: number | null;
-  step_order?: number;
-  payload_trigger?: string;
-  button_title?: string;
-  message_text: string;
-  quick_replies?: QuickReplyOption[];
-  is_end_step?: boolean;
-}
-
-export interface ConversationStepUpdate {
-  step_order?: number;
-  payload_trigger?: string;
-  button_title?: string;
-  message_text?: string;
-  quick_replies?: QuickReplyOption[];
-  is_end_step?: boolean;
-}
-
-export interface ConversationFlow {
-  id: number;
-  automation_id: number;
-  name: string;
-  description: string | null;
-  initial_message: string;
-  steps: ConversationStep[];
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ConversationFlowCreate {
-  automation_id: number;
-  name: string;
-  description?: string;
-  initial_message: string;
-  steps?: ConversationStepCreate[];
-}
-
-export interface ConversationFlowUpdate {
-  name?: string;
-  description?: string;
-  initial_message?: string;
 }
 
 // Action Log types
@@ -213,41 +150,4 @@ export interface DashboardAnalytics {
   active_accounts: number;
   daily_stats: DailyStatPoint[];
   period_days: number;
-}
-
-// Inbox types
-export interface ConversationSummary {
-  recipient_id: string;
-  recipient_username: string;
-  total_messages: number;
-  last_message: string;
-  last_action_type: string;
-  last_status: string;
-  last_timestamp: string;
-}
-
-export interface ConversationList {
-  conversations: ConversationSummary[];
-  total: number;
-  page: number;
-  page_size: number;
-}
-
-export interface InboxMessage {
-  id: number;
-  action_type: string;
-  status: string;
-  message: string;
-  comment_id: string | null;
-  recipient_username: string;
-  details: string | null;
-  created_at: string;
-}
-
-export interface ConversationMessages {
-  messages: InboxMessage[];
-  total: number;
-  page: number;
-  page_size: number;
-  recipient_id: string;
 }

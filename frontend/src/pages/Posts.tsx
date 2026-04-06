@@ -189,12 +189,9 @@ const Posts: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Automation Badges */}
+                      {/* Automation Badge */}
                       {postAutos.length > 0 && (
                         <div className="absolute top-3 left-3 flex gap-2">
-                          {postAutos.some(
-                            (a) => a.automation_type === 'auto_reply_comment'
-                          ) && (
                             <div className="bg-primary/90 backdrop-blur-md text-white p-1.5 rounded-lg shadow-sm">
                               <span
                                 className="material-symbols-outlined text-sm block"
@@ -202,24 +199,9 @@ const Posts: React.FC = () => {
                                   fontVariationSettings: "'FILL' 1",
                                 }}
                               >
-                                forum
+                                smart_toy
                               </span>
                             </div>
-                          )}
-                          {postAutos.some(
-                            (a) => a.automation_type === 'send_dm'
-                          ) && (
-                            <div className="bg-tertiary/90 backdrop-blur-md text-white p-1.5 rounded-lg shadow-sm">
-                              <span
-                                className="material-symbols-outlined text-sm block"
-                                style={{
-                                  fontVariationSettings: "'FILL' 1",
-                                }}
-                              >
-                                send
-                              </span>
-                            </div>
-                          )}
                         </div>
                       )}
 

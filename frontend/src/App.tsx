@@ -6,10 +6,8 @@ import Sidebar from './components/Sidebar';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
-import Flows from './pages/Flows';
 import Automations from './pages/Automations';
 import Posts from './pages/Posts';
-import Inbox from './pages/Inbox';
 import Settings from './pages/Settings';
 import Logs from './pages/Logs';
 import Pricing from './pages/Pricing';
@@ -66,14 +64,6 @@ const AppLayout: React.FC = () => {
             }
           />
           <Route
-            path="/flows"
-            element={
-              <ProtectedRoute>
-                <Flows />
-              </ProtectedRoute>
-            }
-          />
-          <Route
             path="/automations"
             element={
               <ProtectedRoute>
@@ -86,14 +76,6 @@ const AppLayout: React.FC = () => {
             element={
               <ProtectedRoute>
                 <Posts />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/inbox"
-            element={
-              <ProtectedRoute>
-                <Inbox />
               </ProtectedRoute>
             }
           />
