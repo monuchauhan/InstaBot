@@ -4,6 +4,7 @@ import random
 import httpx
 from datetime import datetime, timedelta
 from typing import Optional
+from bs4 import BeautifulSoup
 from celery import shared_task
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
@@ -236,8 +237,11 @@ def send_dm(
 ):
     """
     Send a DM to a user on Instagram.
-    Sends greeting first (as private reply when comment_id is present),
-    then follows up with links as a second plain-text message.
+    When triggered by a comment (comment_id present), sends greeting + links
+    as a single private-reply message (Private Reply only allows one message
+    and does not open a messaging window for follow-ups).
+    When no comment_id, sends greeting first, then links as a carousel
+    Generic Template follow-up.
     """
     db = get_db_session()
     try:
@@ -275,28 +279,58 @@ def send_dm(
         
         access_token = decrypt_token(account.access_token_encrypted)
         
-        # Send DM — use Private Reply (comment_id recipient) when triggered
-        # by a comment, otherwise use the regular messaging endpoint.
+        # --- Private Reply path (comment-triggered) ---
+        # Private Reply only supports ONE text message per comment and does NOT
+        # support template attachments.  Follow-up messages require the recipient
+        # to respond first (opening a 24-hour messaging window).
+        # Docs: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api/private-replies/
         if comment_id:
+            dm_text = message_text
+            if links:
+                dm_text = message_text + "\n\n" + "\n".join(links)
+            
             with httpx.Client() as client:
                 response = client.post(
                     f"https://graph.instagram.com/{settings.INSTAGRAM_GRAPH_API_VERSION}/me/messages",
                     params={"access_token": access_token},
                     json={
                         "recipient": {"comment_id": comment_id},
-                        "message": {"text": message_text},
+                        "message": {"text": dm_text},
                     },
                 )
-        else:
-            with httpx.Client() as client:
-                response = client.post(
-                    f"https://graph.instagram.com/{settings.INSTAGRAM_GRAPH_API_VERSION}/me/messages",
-                    params={"access_token": access_token},
-                    json={
-                        "recipient": {"id": recipient_id},
-                        "message": {"text": message_text},
-                    }
-                )
+            
+            logger.info(f"DM send response (private reply): status={response.status_code}, body={response.text[:200]}")
+            
+            log = ActionLog(
+                user_id=user_id,
+                instagram_account_id=account_id,
+                action_type=ActionType.DM_SENT,
+                status="success" if response.status_code == 200 else "failed",
+                recipient_id=recipient_id,
+                recipient_username=recipient_username,
+                message_sent=dm_text,
+                comment_id=comment_id,
+                details=json.dumps(response.json()) if response.status_code == 200 else None,
+                error_message=response.text if response.status_code != 200 else None,
+            )
+            db.add(log)
+            db.commit()
+            
+            if response.status_code != 200:
+                raise Exception(f"Failed to send DM: {response.text}")
+            
+            return {"status": "success", "message_id": response.json().get("message_id")}
+        
+        # --- Regular DM path (existing messaging window) ---
+        with httpx.Client() as client:
+            response = client.post(
+                f"https://graph.instagram.com/{settings.INSTAGRAM_GRAPH_API_VERSION}/me/messages",
+                params={"access_token": access_token},
+                json={
+                    "recipient": {"id": recipient_id},
+                    "message": {"text": message_text},
+                }
+            )
             
         logger.info(f"DM send response: status={response.status_code}, body={response.text[:200]}")
             
@@ -318,18 +352,66 @@ def send_dm(
             db.add(log)
             db.commit()
             
-            # Send links as a follow-up message (always via regular messaging, not private reply)
+            # Send links as a carousel (Generic Template) follow-up.
+            # Only reaches here for non-comment DMs (comment_id path returns early above).
             if links:
+                # Build carousel elements with OG metadata
+                elements = []
+                for link in links:
+                    og = _fetch_og_metadata(link)
+                    element = {
+                        "title": (og["title"] or link)[:80],
+                        "default_action": {
+                            "type": "web_url",
+                            "url": link,
+                        },
+                        "buttons": [{
+                            "type": "web_url",
+                            "url": link,
+                            "title": "Open Link",
+                        }],
+                    }
+                    if og["description"]:
+                        element["subtitle"] = og["description"][:80]
+                    if og["image_url"]:
+                        element["image_url"] = og["image_url"]
+                    elements.append(element)
+
+                carousel_payload = {
+                    "recipient": {"id": recipient_id},
+                    "message": {
+                        "attachment": {
+                            "type": "template",
+                            "payload": {
+                                "template_type": "generic",
+                                "elements": elements,
+                            },
+                        },
+                    },
+                }
+
                 links_text = "\n".join(links)
                 with httpx.Client() as client:
                     links_response = client.post(
                         f"https://graph.instagram.com/{settings.INSTAGRAM_GRAPH_API_VERSION}/me/messages",
                         params={"access_token": access_token},
-                        json={
-                            "recipient": {"id": recipient_id},
-                            "message": {"text": links_text},
-                        }
+                        json=carousel_payload,
                     )
+
+                # Fallback to plain text if the template was rejected
+                if links_response.status_code != 200:
+                    logger.warning(
+                        f"Generic template failed ({links_response.status_code}), falling back to plain text: {links_response.text[:200]}"
+                    )
+                    with httpx.Client() as client:
+                        links_response = client.post(
+                            f"https://graph.instagram.com/{settings.INSTAGRAM_GRAPH_API_VERSION}/me/messages",
+                            params={"access_token": access_token},
+                            json={
+                                "recipient": {"id": recipient_id},
+                                "message": {"text": links_text},
+                            },
+                        )
                 
                 logger.info(f"DM links response: status={links_response.status_code}, body={links_response.text[:200]}")
                 
@@ -377,6 +459,26 @@ def send_dm(
         raise self.retry(exc=e)
     finally:
         db.close()
+
+
+def _fetch_og_metadata(url: str) -> dict:
+    """Fetch Open Graph metadata (title, description, image) from a URL."""
+    try:
+        with httpx.Client(timeout=10, follow_redirects=True) as client:
+            resp = client.get(url, headers={"User-Agent": "Mozilla/5.0"})
+            resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "html.parser")
+        og_title = soup.find("meta", property="og:title")
+        og_desc = soup.find("meta", property="og:description")
+        og_image = soup.find("meta", property="og:image")
+        return {
+            "title": og_title["content"] if og_title and og_title.get("content") else None,
+            "description": og_desc["content"] if og_desc and og_desc.get("content") else None,
+            "image_url": og_image["content"] if og_image and og_image.get("content") else None,
+        }
+    except Exception as e:
+        logger.warning(f"Failed to fetch OG metadata for {url}: {e}")
+        return {"title": None, "description": None, "image_url": None}
 
 
 def _personalize_message(template: str, username: str) -> str:

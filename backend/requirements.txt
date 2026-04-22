@@ -33,6 +33,7 @@ email-validator==2.1.0
 # Utilities
 python-dotenv==1.0.0
 tenacity==8.2.3
+beautifulsoup4==4.12.3
 
 # Testing
 pytest==7.4.4

@@ -36,6 +36,7 @@ const Automations: React.FC = () => {
   const [editingPost, setEditingPost] = useState<InstagramPost | null>(null); // Post loaded when editing
   const [loadingEditPost, setLoadingEditPost] = useState(false);
   const [createStep, setCreateStep] = useState<'select-post' | 'configure'>('select-post');
+  const [postLookup, setPostLookup] = useState<Record<string, InstagramPost>>({});
 
   // Form state
   const [formAccountId, setFormAccountId] = useState<number | undefined>();
@@ -65,6 +66,27 @@ const Automations: React.FC = () => {
 
       if (automationsResult.status === 'fulfilled') {
         setAutomations(automationsResult.value);
+
+        // Fetch post thumbnails for automation cards
+        const fetchedAccounts = accountsResult.status === 'fulfilled' ? accountsResult.value : [];
+        const autoList = automationsResult.value;
+        const accountIds = [...new Set(
+          autoList
+            .filter((a: AutomationSettings) => a.target_post_id && a.instagram_account_id)
+            .map((a: AutomationSettings) => a.instagram_account_id as number)
+        )];
+        if (accountIds.length > 0) {
+          const postResults = await Promise.allSettled(
+            accountIds.map((id) => instagramApi.getPosts(id))
+          );
+          const lookup: Record<string, InstagramPost> = {};
+          postResults.forEach((r) => {
+            if (r.status === 'fulfilled') {
+              r.value.forEach((p: InstagramPost) => { lookup[p.id] = p; });
+            }
+          });
+          setPostLookup(lookup);
+        }
       } else {
         console.error('Failed to fetch automations:', automationsResult.reason);
       }
@@ -326,7 +348,28 @@ const Automations: React.FC = () => {
                     {automation.target_post_id && (
                       <div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Target Post</p>
-                        <p className="text-xs text-on-surface truncate">📋 {automation.target_post_id}</p>
+                        {postLookup[automation.target_post_id] ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0">
+                              <img
+                                src={
+                                  postLookup[automation.target_post_id].media_type === 'VIDEO'
+                                    ? (postLookup[automation.target_post_id].thumbnail_url || postLookup[automation.target_post_id].media_url || '')
+                                    : (postLookup[automation.target_post_id].media_url || '')
+                                }
+                                alt="Target post"
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <p className="text-xs text-on-surface-variant line-clamp-2 flex-1">
+                              {postLookup[automation.target_post_id].caption
+                                ? postLookup[automation.target_post_id].caption!.substring(0, 60) + (postLookup[automation.target_post_id].caption!.length > 60 ? '…' : '')
+                                : 'No caption'}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-on-surface truncate">📋 {automation.target_post_id}</p>
+                        )}
                       </div>
                     )}
                     <div>
@@ -732,7 +775,7 @@ const Automations: React.FC = () => {
                       <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-outline-variant/10">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center text-white text-xs font-bold">IG</div>
                         <div>
-                          <p className="text-sm font-bold text-on-surface">your_business</p>
+                          <p className="text-sm font-bold text-on-surface">John</p>
                           <p className="text-[10px] text-slate-400">Instagram</p>
                         </div>
                       </div>
@@ -762,17 +805,28 @@ const Automations: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Links bubble */}
+                        {/* Links carousel */}
                         {formDmLinks.filter(l => l.trim()).length > 0 && (
                           <div className="flex justify-end">
-                            <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl rounded-br-md px-4 py-2.5 max-w-[80%]">
-                              <div className="space-y-1">
-                                {formDmLinks.filter(l => l.trim()).map((link, i) => (
-                                  <p key={i} className="text-sm text-blue-100 underline break-all">
-                                    {link}
-                                  </p>
-                                ))}
-                              </div>
+                            <div className="max-w-[85%] flex gap-2 overflow-x-auto pb-1">
+                              {formDmLinks.filter(l => l.trim()).map((link, i) => {
+                                let domain = '';
+                                try { domain = new URL(link).hostname.replace('www.', ''); } catch { domain = link; }
+                                return (
+                                  <div key={i} className="shrink-0 w-44 rounded-xl overflow-hidden border border-outline-variant/20 bg-white shadow-sm">
+                                    <div className="h-24 bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+                                      <span className="material-symbols-outlined text-3xl text-slate-400">link</span>
+                                    </div>
+                                    <div className="px-3 py-2">
+                                      <p className="text-[11px] font-bold text-on-surface truncate">{domain}</p>
+                                      <p className="text-[10px] text-slate-400 truncate">{link}</p>
+                                    </div>
+                                    <div className="border-t border-outline-variant/10 px-3 py-1.5">
+                                      <p className="text-[10px] font-bold text-blue-500 text-center">Open Link</p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         )}
