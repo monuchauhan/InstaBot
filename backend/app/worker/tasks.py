@@ -521,18 +521,36 @@ def send_dm(
 def _fetch_og_metadata(url: str) -> dict:
     """Fetch Open Graph metadata (title, description, image) from a URL."""
     try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+        }
         with httpx.Client(timeout=10, follow_redirects=True) as client:
-            resp = client.get(url, headers={"User-Agent": "Mozilla/5.0"})
+            resp = client.get(url, headers=headers)
             resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
+
         og_title = soup.find("meta", property="og:title")
         og_desc = soup.find("meta", property="og:description")
         og_image = soup.find("meta", property="og:image")
-        return {
-            "title": og_title["content"] if og_title and og_title.get("content") else None,
-            "description": og_desc["content"] if og_desc and og_desc.get("content") else None,
-            "image_url": og_image["content"] if og_image and og_image.get("content") else None,
-        }
+
+        title = og_title["content"] if og_title and og_title.get("content") else None
+        description = og_desc["content"] if og_desc and og_desc.get("content") else None
+        image_url = og_image["content"] if og_image and og_image.get("content") else None
+
+        # Fallback to standard HTML tags when OG tags are missing
+        if not title:
+            title_tag = soup.find("title")
+            if title_tag and title_tag.string:
+                title = title_tag.string.strip()
+        if not description:
+            meta_desc = soup.find("meta", attrs={"name": "description"})
+            if meta_desc and meta_desc.get("content"):
+                description = meta_desc["content"]
+
+        logger.info(f"OG metadata for {url}: title={bool(title)}, desc={bool(description)}, image={bool(image_url)}")
+        return {"title": title, "description": description, "image_url": image_url}
     except Exception as e:
         logger.warning(f"Failed to fetch OG metadata for {url}: {e}")
         return {"title": None, "description": None, "image_url": None}
