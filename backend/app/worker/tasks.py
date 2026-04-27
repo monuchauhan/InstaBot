@@ -237,11 +237,9 @@ def send_dm(
 ):
     """
     Send a DM to a user on Instagram.
-    When links are present, always tries the regular DM path first
-    (recipient:{id}) which supports carousel Generic Templates.
-    If the regular DM fails (no open messaging window), falls back to
-    a Private Reply (recipient:{comment_id}) with links as plain text.
-    When no links, uses Private Reply directly if comment_id is present.
+    When comment-triggered with links, tries sending a Generic Template
+    carousel first. If the API rejects it, falls back to plain text.
+    When no comment_id, sends greeting + carousel via regular DM path.
     """
     db = get_db_session()
     try:
@@ -279,61 +277,72 @@ def send_dm(
         
         access_token = decrypt_token(account.access_token_encrypted)
         
-        # --- Private Reply path (comment-triggered, no links) ---
-        # When there are no links, a simple text Private Reply is fine.
-        # Docs: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api/private-replies/
-        if comment_id and not links:
-            with httpx.Client() as client:
-                response = client.post(
-                    f"https://graph.instagram.com/{settings.INSTAGRAM_GRAPH_API_VERSION}/me/messages",
-                    params={"access_token": access_token},
-                    json={
-                        "recipient": {"comment_id": comment_id},
-                        "message": {"text": message_text},
+        # --- Comment-triggered path ---
+        if comment_id:
+            # When we have links, try Generic Template carousel first
+            if links:
+                elements = []
+                for link in links:
+                    og = _fetch_og_metadata(link)
+                    element = {
+                        "title": (og["title"] or link)[:80],
+                        "default_action": {
+                            "type": "web_url",
+                            "url": link,
+                        },
+                        "buttons": [{
+                            "type": "web_url",
+                            "url": link,
+                            "title": "Open Link",
+                        }],
+                    }
+                    if og["description"]:
+                        element["subtitle"] = og["description"][:80]
+                    if og["image_url"]:
+                        element["image_url"] = og["image_url"]
+                    elements.append(element)
+
+                carousel_payload = {
+                    "recipient": {"comment_id": comment_id},
+                    "message": {
+                        "attachment": {
+                            "type": "template",
+                            "payload": {
+                                "template_type": "generic",
+                                "elements": elements,
+                            },
+                        },
                     },
-                )
-            
-            logger.info(f"DM send response (private reply): status={response.status_code}, body={response.text[:200]}")
-            
-            log = ActionLog(
-                user_id=user_id,
-                instagram_account_id=account_id,
-                action_type=ActionType.DM_SENT,
-                status="success" if response.status_code == 200 else "failed",
-                recipient_id=recipient_id,
-                recipient_username=recipient_username,
-                message_sent=message_text,
-                comment_id=comment_id,
-                details=json.dumps(response.json()) if response.status_code == 200 else None,
-                error_message=response.text if response.status_code != 200 else None,
-            )
-            db.add(log)
-            db.commit()
-            
-            if response.status_code != 200:
-                raise Exception(f"Failed to send DM: {response.text}")
-            
-            return {"status": "success", "message_id": response.json().get("message_id")}
-        
-        # --- Regular DM path (supports carousel) ---
-        # Try sending greeting via recipient:{id} first. This works when the
-        # user has an open messaging window. If it fails and we have a
-        # comment_id, fall back to Private Reply with links as plain text.
-        with httpx.Client() as client:
-            response = client.post(
-                f"https://graph.instagram.com/{settings.INSTAGRAM_GRAPH_API_VERSION}/me/messages",
-                params={"access_token": access_token},
-                json={
-                    "recipient": {"id": recipient_id},
-                    "message": {"text": message_text},
                 }
-            )
-            
-        logger.info(f"DM send response: status={response.status_code}, body={response.text[:200]}")
-        
-        # If regular DM failed and we have a comment_id, fall back to Private Reply
-        if response.status_code != 200 and comment_id:
-            logger.info(f"Regular DM failed, falling back to private reply for comment_id={comment_id}")
+
+                with httpx.Client() as client:
+                    response = client.post(
+                        f"https://graph.instagram.com/{settings.INSTAGRAM_GRAPH_API_VERSION}/me/messages",
+                        params={"access_token": access_token},
+                        json=carousel_payload,
+                    )
+
+                logger.info(f"DM send response (carousel via comment): status={response.status_code}, body={response.text[:200]}")
+
+                if response.status_code == 200:
+                    log = ActionLog(
+                        user_id=user_id,
+                        instagram_account_id=account_id,
+                        action_type=ActionType.DM_SENT,
+                        status="success",
+                        recipient_id=recipient_id,
+                        recipient_username=recipient_username,
+                        message_sent=message_text,
+                        comment_id=comment_id,
+                        details=json.dumps(response.json()),
+                    )
+                    db.add(log)
+                    db.commit()
+                    return {"status": "success", "message_id": response.json().get("message_id")}
+                else:
+                    logger.info(f"Carousel via comment failed ({response.status_code}), falling back to plain text private reply")
+
+            # Fallback: plain text private reply (no links or carousel was rejected)
             dm_text = message_text
             if links:
                 dm_text = message_text + "\n\n" + "\n".join(links)
@@ -348,7 +357,7 @@ def send_dm(
                     },
                 )
             
-            logger.info(f"DM send response (private reply fallback): status={response.status_code}, body={response.text[:200]}")
+            logger.info(f"DM send response (private reply): status={response.status_code}, body={response.text[:200]}")
             
             log = ActionLog(
                 user_id=user_id,
@@ -369,6 +378,19 @@ def send_dm(
                 raise Exception(f"Failed to send DM: {response.text}")
             
             return {"status": "success", "message_id": response.json().get("message_id")}
+        
+        # --- Regular DM path (no comment_id) ---
+        with httpx.Client() as client:
+            response = client.post(
+                f"https://graph.instagram.com/{settings.INSTAGRAM_GRAPH_API_VERSION}/me/messages",
+                params={"access_token": access_token},
+                json={
+                    "recipient": {"id": recipient_id},
+                    "message": {"text": message_text},
+                }
+            )
+            
+        logger.info(f"DM send response: status={response.status_code}, body={response.text[:200]}")
             
         if response.status_code == 200:
             result = response.json()
